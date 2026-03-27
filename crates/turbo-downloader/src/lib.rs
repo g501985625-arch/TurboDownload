@@ -16,6 +16,7 @@ pub mod http;
 pub mod range;
 pub mod chunk;
 pub mod download;
+pub mod event;
 pub mod pool;
 pub mod progress;
 pub mod resume;
@@ -27,6 +28,7 @@ pub use http::{Client, ClientConfig, HeadResponse};
 pub use range::{RangeClient, RangeClientConfig, RangeSupport};
 pub use chunk::{Chunk, ChunkManager, ChunkProgress, ChunkState, Strategy, Worker};
 pub use pool::WorkerPool;
+pub use event::{DownloadEvent, DownloadStatus, EventEmitter};
 pub use storage::{ChunkWriter, FileMerger, StateManager, DownloadState};
 pub use download::{
     cleanup, merge_files, DownloadConfig, DownloadResult, Downloader, DownloaderBuilder, Manager,
