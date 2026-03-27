@@ -65,7 +65,7 @@ impl Scheduler {
             let client = client.clone();
             let tx = tx.clone();
             let temp_paths_inner = temp_paths_clone.clone();
-            let temp_dir = temp_dir_clone.clone();
+            let _temp_dir = temp_dir_clone.clone();
 
             join_set.spawn(async move {
                 let mut worker = Worker::new(chunk, url, client);

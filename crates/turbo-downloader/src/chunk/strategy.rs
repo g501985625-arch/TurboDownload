@@ -22,7 +22,7 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    pub fn new(id: u32, start: u64, end: u64, temp_dir: &PathBuf) -> Self {
+    pub fn new(id: u32, start: u64, end: u64, temp_dir: &std::path::Path) -> Self {
         Self {
             id,
             start,
@@ -87,7 +87,7 @@ impl Strategy {
         for id in 0..actual_threads {
             let end = (start + chunk_size).min(file_size);
             // Create a placeholder chunk without temp_path, it will be set later
-            let mut chunk = Chunk::new_placeholder(id, start, end);
+            let chunk = Chunk::new_placeholder(id, start, end);
             chunks.push(chunk);
             start = end;
         }
