@@ -26,12 +26,13 @@ impl Recovery {
         }
 
         // Convert to chunks
+        let temp_dir = state.output_path.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
         let chunks: Vec<Chunk> = state
             .chunks
             .into_iter()
             .filter_map(|c| {
                 if c.downloaded < (c.end - c.start) {
-                    Some(Chunk::new(c.id, c.start + c.downloaded, c.end))
+                    Some(Chunk::new(c.id, c.start + c.downloaded, c.end, &temp_dir))
                 } else {
                     None
                 }

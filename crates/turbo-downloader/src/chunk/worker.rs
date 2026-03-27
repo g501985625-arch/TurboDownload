@@ -16,17 +16,14 @@ pub struct Worker {
     chunk: Chunk,
     url: String,
     client: Client,
-    temp_path: std::path::PathBuf,
 }
 
 impl Worker {
-    pub fn new(chunk: Chunk, url: String, client: Client, temp_dir: &Path) -> Self {
-        let temp_path = temp_dir.join(format!("chunk_{}.tmp", chunk.id));
+    pub fn new(chunk: Chunk, url: String, client: Client) -> Self {
         Self {
             chunk,
             url,
             client,
-            temp_path,
         }
     }
 
@@ -39,7 +36,7 @@ impl Worker {
         use tokio::fs::File;
         use tokio::io::AsyncWriteExt;
 
-        let mut file = File::create(&self.temp_path).await?;
+        let mut file = File::create(&self.chunk.temp_path).await?;
         let mut downloaded = self.chunk.downloaded;
 
         while downloaded < self.chunk.size() {
@@ -67,6 +64,6 @@ impl Worker {
     }
 
     pub fn temp_path(&self) -> &Path {
-        &self.temp_path
+        &self.chunk.temp_path
     }
 }

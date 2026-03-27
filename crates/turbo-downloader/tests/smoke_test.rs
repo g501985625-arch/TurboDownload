@@ -16,12 +16,13 @@ mod tests {
     /// Test chunk creation
     #[test]
     fn test_chunk_creation() {
-        let chunk = Chunk::new(0, 0, 1000);
+        let temp_dir = PathBuf::from("/tmp");
+        let chunk = Chunk::new(0, 0, 1000, &temp_dir);
         assert_eq!(chunk.id, 0);
         assert_eq!(chunk.size(), 1000);
         assert!(!chunk.is_complete());
 
-        let chunk2 = Chunk::new(1, 500, 1000);
+        let chunk2 = Chunk::new(1, 500, 1000, &temp_dir);
         assert_eq!(chunk2.remaining(), 500);
     }
 

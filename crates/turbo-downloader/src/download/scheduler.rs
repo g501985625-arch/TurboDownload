@@ -68,7 +68,7 @@ impl Scheduler {
             let temp_dir = temp_dir_clone.clone();
 
             join_set.spawn(async move {
-                let mut worker = Worker::new(chunk, url, client, &temp_dir);
+                let mut worker = Worker::new(chunk, url, client);
                 let temp_path = worker.temp_path().to_owned();
 
                 let result = worker.download(tx).await;

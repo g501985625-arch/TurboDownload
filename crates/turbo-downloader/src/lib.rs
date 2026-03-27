@@ -13,6 +13,7 @@
 
 pub mod error;
 pub mod http;
+pub mod range;
 pub mod chunk;
 pub mod download;
 pub mod progress;
@@ -21,6 +22,7 @@ pub mod resume;
 // Re-export main types
 pub use error::{DownloadError, Result};
 pub use http::{Client, ClientConfig, HeadResponse};
+pub use range::{RangeClient, RangeClientConfig, RangeSupport};
 pub use chunk::{Chunk, ChunkProgress, ChunkState, Strategy, Worker};
 pub use download::{
     cleanup, merge_files, DownloadConfig, DownloadResult, Downloader, DownloaderBuilder, Manager,
