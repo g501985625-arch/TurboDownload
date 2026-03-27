@@ -31,25 +31,61 @@ impl Worker {
         self.chunk.id
     }
 
-    /// Execute chunk download
+    /// Execute chunk download with retry
     pub async fn download(&mut self, progress_tx: mpsc::Sender<ChunkProgress>) -> Result<()> {
+        self.download_with_retry(progress_tx, 3).await
+    }
+
+    /// Execute chunk download with configurable retry
+    pub async fn download_with_retry(
+        &mut self,
+        progress_tx: mpsc::Sender<ChunkProgress>,
+        max_retries: u32,
+    ) -> Result<()> {
         use tokio::fs::File;
         use tokio::io::AsyncWriteExt;
 
-        let mut file = File::create(&self.chunk.temp_path).await?;
+        let mut retries = 0;
+
+        loop {
+            match self.try_download(&progress_tx).await {
+                Ok(()) => return Ok(()),
+                Err(_e) if retries < max_retries => {
+                    retries += 1;
+                    let delay = std::time::Duration::from_secs(2u64.pow(retries));
+                    tokio::time::sleep(delay).await;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    /// Try to download chunk (single attempt)
+    async fn try_download(&mut self, progress_tx: &mpsc::Sender<ChunkProgress>) -> Result<()> {
+        use tokio::fs::OpenOptions;
+        use tokio::io::AsyncWriteExt;
+
+        // Open file for append (resume support)
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.chunk.temp_path)
+            .await?;
+
         let mut downloaded = self.chunk.downloaded;
+        let buffer_size = 64 * 1024; // 64KB chunks
 
         while downloaded < self.chunk.size() {
             let start = self.chunk.start + downloaded;
-            let end = (start + 64 * 1024).min(self.chunk.end);
-            let range = start..end;
+            let end = (start + buffer_size).min(self.chunk.end);
 
-            let bytes = self.client.get_range(&self.url, range).await?;
+            let bytes = self.client.get_range(&self.url, start..end).await?;
             file.write_all(&bytes).await?;
 
             downloaded += bytes.len() as u64;
             self.chunk.downloaded = downloaded;
 
+            // Send progress update
             let _ = progress_tx
                 .send(ChunkProgress {
                     chunk_id: self.chunk.id,
