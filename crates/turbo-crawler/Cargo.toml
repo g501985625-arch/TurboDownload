@@ -1,0 +1,52 @@
+[package]
+name = "turbo-crawler"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["TurboDownload Team"]
+description = "Web resource crawler and extractor"
+repository = "https://github.com/turbodownload/turbo-crawler"
+keywords = ["crawler", "scraper", "web", "html"]
+categories = ["network-programming", "web-programming"]
+
+[lib]
+name = "turbo_crawler"
+path = "src/lib.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "stream"] }
+
+# HTML parsing
+scraper = "0.19"
+
+# URL handling
+url = "2.5"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+
+# Regex for URL matching
+regex = "1.10"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+wiremock = "0.5"
+tempfile = "3.8"
+
+[features]
+default = []
