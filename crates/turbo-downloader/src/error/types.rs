@@ -25,6 +25,10 @@ pub enum DownloadError {
     #[error("Range request not supported")]
     RangeNotSupported,
 
+    /// Content length unknown
+    #[error("Content length unknown")]
+    ContentLengthUnknown,
+
     /// Validation failed
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
@@ -73,6 +77,7 @@ impl DownloadError {
             DownloadError::Io(_) => "IO",
             DownloadError::TaskNotFound(_) => "TASK_NOT_FOUND",
             DownloadError::RangeNotSupported => "RANGE_NOT_SUPPORTED",
+            DownloadError::ContentLengthUnknown => "CONTENT_LENGTH_UNKNOWN",
             DownloadError::ValidationFailed(_) => "VALIDATION",
             DownloadError::Timeout => "TIMEOUT",
             DownloadError::Cancelled => "CANCELLED",

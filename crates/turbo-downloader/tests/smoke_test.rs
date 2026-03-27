@@ -29,7 +29,8 @@ mod tests {
     /// Test strategy calculation
     #[test]
     fn test_strategy_calculation() {
-        let strategy = Strategy::calculate(10_000_000, 0, 1_000_000);
+        let temp_dir = std::path::PathBuf::from("/tmp");
+        let strategy = Strategy::calculate_with_temp_dir(10_000_000, 0, 1_000_000, &temp_dir);
         assert!(strategy.chunks.len() >= 2);
 
         let total: u64 = strategy.chunks.iter().map(|c| c.size()).sum();
@@ -39,12 +40,14 @@ mod tests {
     /// Test strategy boundaries
     #[test]
     fn test_strategy_boundaries() {
+        let temp_dir = std::path::PathBuf::from("/tmp");
+        
         // Small file
-        let s1 = Strategy::calculate(100, 0, 10);
+        let s1 = Strategy::calculate_with_temp_dir(100, 0, 10, &temp_dir);
         assert!(s1.chunks.len() >= 1);
 
         // Large file
-        let s2 = Strategy::calculate(1_000_000_000, 0, 1_000_000);
+        let s2 = Strategy::calculate_with_temp_dir(1_000_000_000, 0, 1_000_000, &temp_dir);
         assert!(s2.chunks.len() >= 8);
     }
 

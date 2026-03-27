@@ -32,7 +32,7 @@ impl FileMerger {
     pub async fn merge_ordered(
         chunk_paths: &[&Path],
         output_path: &Path,
-        chunk_size: u64,
+        _chunk_size: u64,
     ) -> Result<()> {
         // For now, same as merge (chunks should be in order)
         Self::merge(chunk_paths, output_path).await

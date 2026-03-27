@@ -71,7 +71,7 @@ impl MultiThreadDownloader {
         let chunk_writer = ChunkWriter::new();
 
         // 5. Spawn download workers
-        let (progress_tx, mut progress_rx) = mpsc::channel(100);
+        let (_progress_tx, _progress_rx) = mpsc::channel::<crate::event::DownloadEvent>(100);
         let tracker = Arc::new(Tracker::new(total_size));
 
         // TODO: Implement concurrent chunk download
