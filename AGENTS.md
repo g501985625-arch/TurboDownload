@@ -10,18 +10,28 @@ If `BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out w
 
 Before doing anything else:
 
+### 1. 核心身份记忆（必须）
 1. Read `SOUL.md` — this is who you are
 2. Read `USER.md` — this is who you're helping
 3. Read `IDENTITY.md` — team configuration
 4. Read `MEMORY.md` — long-term memory
-5. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
-6. **Read `projects/TurboDownload/PROJECT_STATE.md`** — current project status
-7. **自动读取记忆**: 执行 `python3 .agents/skills/persistent-memory/scripts/memory.py recent --limit 10` 获取持久化记忆
-8. **If project context lost**: Run `bash scripts/session_recovery.sh`
+
+### 2. 持久化记忆恢复（自动）
+5. **执行自动恢复脚本**: `python3 scripts/auto_session_recovery.py`
+   - 读取持久化记忆中的项目状态
+   - 搜索关键信息（TurboDownload、流程规则、团队配置）
+   - 检查项目状态文件
+   - 显示 Git 状态
+
+### 3. 工作记录（补充）
+6. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
+
+### 4. 项目状态（关键）
+7. **Read `projects/TurboDownload/PROJECT_STATE.md`** — current project status
 
 Don't ask permission. Just do it.
 
-**Critical**: Always check PROJECT_STATE.md to restore context after session restart.
+**Critical**: The auto_session_recovery.py script will restore most context automatically.
 
 ## Memory
 
