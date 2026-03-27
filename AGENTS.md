@@ -16,22 +16,34 @@ Before doing anything else:
 3. Read `IDENTITY.md` — team configuration
 4. Read `MEMORY.md` — long-term memory
 
-### 2. 持久化记忆恢复（自动）
-5. **执行自动恢复脚本**: `python3 scripts/auto_session_recovery.py`
+### 2. 流程强制执行检查 ⭐ 新增
+**执行**: `bash scripts/enforce_workflow_check.sh`
+
+检查内容：
+- [ ] 当前项目阶段
+- [ ] Phase 1 是否完成（详细任务链是否存在）
+- [ ] 是否按 v2.1 流程执行
+
+**如检查失败，立即停止并报告！**
+
+### 3. 持久化记忆恢复（自动）
+**执行自动恢复脚本**: `python3 scripts/auto_session_recovery.py`
    - 读取持久化记忆中的项目状态
    - 搜索关键信息（TurboDownload、流程规则、团队配置）
    - 检查项目状态文件
    - 显示 Git 状态
 
-### 3. 工作记录（补充）
-6. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
+### 4. 工作记录（补充）
+Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
 
-### 4. 项目状态（关键）
-7. **Read `projects/TurboDownload/PROJECT_STATE.md`** — current project status
+### 5. 项目状态（关键）
+**Read `projects/TurboDownload/PROJECT_STATE.md`** — current project status
 
 Don't ask permission. Just do it.
 
-**Critical**: The auto_session_recovery.py script will restore most context automatically.
+**Critical**: 
+- 流程检查失败 = 禁止开发
+- 必须先有详细任务链，才能开发
 
 ## Memory
 
