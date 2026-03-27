@@ -19,6 +19,7 @@ pub mod download;
 pub mod pool;
 pub mod progress;
 pub mod resume;
+pub mod storage;
 
 // Re-export main types
 pub use error::{DownloadError, Result};
@@ -26,6 +27,7 @@ pub use http::{Client, ClientConfig, HeadResponse};
 pub use range::{RangeClient, RangeClientConfig, RangeSupport};
 pub use chunk::{Chunk, ChunkManager, ChunkProgress, ChunkState, Strategy, Worker};
 pub use pool::WorkerPool;
+pub use storage::{ChunkWriter, FileMerger, StateManager, DownloadState};
 pub use download::{
     cleanup, merge_files, DownloadConfig, DownloadResult, Downloader, DownloaderBuilder, Manager,
     Scheduler, Task, TaskState,
