@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/turbo-downloader",
     "crates/turbo-crawler",
+    "src-tauri",
 ]
 
 [workspace.dependencies]

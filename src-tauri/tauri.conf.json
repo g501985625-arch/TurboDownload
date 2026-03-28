@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.turbodownload.app",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "cd ../crates/turbo-ui && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "cd ../crates/turbo-ui && npm run build",
+    "frontendDist": "../crates/turbo-ui/dist"
   },
   "app": {
     "withGlobalTauri": true,
