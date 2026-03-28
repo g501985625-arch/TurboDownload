@@ -68,4 +68,69 @@ mod tests {
         // Cleanup
         let _ = tokio::fs::remove_dir_all(&temp_dir).await;
     }
+
+    #[tokio::test]
+    async fn test_merge_single_chunk() {
+        let temp_dir = PathBuf::from("/tmp/test_merge_single");
+        tokio::fs::create_dir_all(&temp_dir).await.unwrap();
+        
+        let chunk_path = temp_dir.join("chunk.tmp");
+        let output_path = temp_dir.join("output.txt");
+        
+        tokio::fs::write(&chunk_path, b"Single chunk content").await.unwrap();
+        
+        let chunk_paths: Vec<&Path> = vec![&chunk_path];
+        FileMerger::merge(&chunk_paths, &output_path).await.unwrap();
+        
+        let result = tokio::fs::read(&output_path).await.unwrap();
+        assert_eq!(result, b"Single chunk content");
+        
+        // Cleanup
+        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+    }
+
+    #[tokio::test]
+    async fn test_merge_empty_chunks() {
+        let temp_dir = PathBuf::from("/tmp/test_merge_empty");
+        tokio::fs::create_dir_all(&temp_dir).await.unwrap();
+        
+        let output_path = temp_dir.join("output.txt");
+        
+        // Merge empty list
+        let chunk_paths: Vec<&Path> = vec![];
+        FileMerger::merge(&chunk_paths, &output_path).await.unwrap();
+        
+        let result = tokio::fs::read(&output_path).await.unwrap();
+        assert!(result.is_empty());
+        
+        // Cleanup
+        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+    }
+
+    #[tokio::test]
+    async fn test_merge_large_files() {
+        let temp_dir = PathBuf::from("/tmp/test_merge_large");
+        tokio::fs::create_dir_all(&temp_dir).await.unwrap();
+        
+        let chunk1_path = temp_dir.join("chunk1.tmp");
+        let chunk2_path = temp_dir.join("chunk2.tmp");
+        let output_path = temp_dir.join("output.bin");
+        
+        // Create large chunks (1MB each)
+        let data1 = vec![0u8; 1024 * 1024];
+        let data2 = vec![1u8; 1024 * 1024];
+        
+        tokio::fs::write(&chunk1_path, &data1).await.unwrap();
+        tokio::fs::write(&chunk2_path, &data2).await.unwrap();
+        
+        let chunk_paths: Vec<&Path> = vec![&chunk1_path, &chunk2_path];
+        FileMerger::merge(&chunk_paths, &output_path).await.unwrap();
+        
+        // Verify size
+        let metadata = tokio::fs::metadata(&output_path).await.unwrap();
+        assert_eq!(metadata.len(), 2 * 1024 * 1024);
+        
+        // Cleanup
+        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+    }
 }
