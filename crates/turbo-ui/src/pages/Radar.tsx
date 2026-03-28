@@ -27,41 +27,110 @@ interface ResourceItem {
   status: 'pending' | 'scanned';
 }
 
+// ========== Mock API Interfaces ==========
+const mockApi = {
+  // 扫描 URL 接口
+  scanUrl: async (url: string): Promise<ResourceItem[]> => {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Mock scan result based on URL
+    const mockResources: ResourceItem[] = [
+      { key: '1', name: 'video_sample.mp4', type: 'video', size: '256 MB', url: `${url}/video_sample.mp4`, status: 'scanned' },
+      { key: '2', name: 'image_001.jpg', type: 'image', size: '2.4 MB', url: `${url}/image_001.jpg`, status: 'scanned' },
+      { key: '3', name: 'document.pdf', type: 'document', size: '5.8 MB', url: `${url}/document.pdf`, status: 'scanned' },
+      { key: '4', name: 'audio_track.mp3', type: 'audio', size: '8.2 MB', url: `${url}/audio_track.mp3`, status: 'scanned' },
+      { key: '5', name: 'photo_gallery.png', type: 'image', size: '1.2 MB', url: `${url}/photo_gallery.png`, status: 'scanned' },
+      { key: '6', name: 'presentation.pptx', type: 'document', size: '15.3 MB', url: `${url}/presentation.pptx`, status: 'scanned' },
+    ];
+    return mockResources;
+  },
+
+  // 获取资源列表接口
+  getResourceList: async (): Promise<ResourceItem[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [];
+  },
+
+  // 预览接口
+  preview: async (resource: ResourceItem): Promise<string> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return resource.url;
+  },
+
+  // 下载接口
+  download: async (resource: ResourceItem): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // Trigger download
+    const link = document.createElement('a');
+    link.href = resource.url;
+    link.download = resource.name;
+    link.click();
+  },
+};
+
+// ========== Component ==========
 const Radar = () => {
   const [loading, setLoading] = useState(false);
-  const [, setUrl] = useState('');
   const [resources, setResources] = useState<ResourceItem[]>([]);
 
-  // Mock statistics data
+  // 动态计算统计：根据扫描结果统计资源类型数量
   const stats = {
-    video: 12,
-    image: 34,
-    document: 8,
-    audio: 5,
+    video: resources.filter(r => r.type === 'video').length,
+    image: resources.filter(r => r.type === 'image').length,
+    document: resources.filter(r => r.type === 'document').length,
+    audio: resources.filter(r => r.type === 'audio').length,
   };
 
-  const handleScan = (value: string) => {
+  const handleScan = async (value: string) => {
     if (!value) {
       message.warning('请输入URL地址');
       return;
     }
-    setUrl(value);
-    setLoading(true);
     
-    // Mock scan result - 模拟扫描结果
-    setTimeout(() => {
-      const mockResources: ResourceItem[] = [
-        { key: '1', name: 'video_sample.mp4', type: 'video', size: '256 MB', url: `${value}/video_sample.mp4`, status: 'scanned' },
-        { key: '2', name: 'image_001.jpg', type: 'image', size: '2.4 MB', url: `${value}/image_001.jpg`, status: 'scanned' },
-        { key: '3', name: 'document.pdf', type: 'document', size: '5.8 MB', url: `${value}/document.pdf`, status: 'scanned' },
-        { key: '4', name: 'audio_track.mp3', type: 'audio', size: '8.2 MB', url: `${value}/audio_track.mp3`, status: 'scanned' },
-        { key: '5', name: 'photo_gallery.png', type: 'image', size: '1.2 MB', url: `${value}/photo_gallery.png`, status: 'scanned' },
-        { key: '6', name: 'presentation.pptx', type: 'document', size: '15.3 MB', url: `${value}/presentation.pptx`, status: 'scanned' },
-      ];
-      setResources(mockResources);
+    // Basic URL validation
+    try {
+      new URL(value);
+    } catch {
+      message.error('请输入有效的URL地址');
+      return;
+    }
+    
+    setLoading(true);
+    setResources([]); // Clear previous results
+    
+    try {
+      // 调用 Mock API：扫描 URL 接口
+      const scanResults = await mockApi.scanUrl(value);
+      setResources(scanResults);
+      message.success(`扫描完成，发现 ${scanResults.length} 个资源`);
+    } catch (error) {
+      message.error('扫描失败，请重试');
+    } finally {
       setLoading(false);
-      message.success('扫描完成，发现 6 个资源');
-    }, 1500);
+    }
+  };
+
+  // 处理预览
+  const handlePreview = async (record: ResourceItem) => {
+    try {
+      // 调用 Mock API：预览接口
+      const previewUrl = await mockApi.preview(record);
+      window.open(previewUrl, '_blank');
+    } catch (error) {
+      message.error('预览失败');
+    }
+  };
+
+  // 处理下载
+  const handleDownload = async (record: ResourceItem) => {
+    try {
+      // 调用 Mock API：下载接口
+      await mockApi.download(record);
+      message.success(`开始下载: ${record.name}`);
+    } catch (error) {
+      message.error('下载失败');
+    }
   };
 
   const getTypeIcon = (type: string) => {
@@ -130,13 +199,13 @@ const Radar = () => {
       title: '操作',
       key: 'action',
       width: 150,
-      render: () => (
+      render: (_, record) => (
         <Space size="small">
           <Button 
             type="link" 
             icon={<PlayCircleOutlined />} 
             size="small"
-            onClick={() => message.info('预览功能开发中')}
+            onClick={() => handlePreview(record)}
           >
             预览
           </Button>
@@ -144,7 +213,7 @@ const Radar = () => {
             type="link" 
             icon={<DownloadOutlined />} 
             size="small"
-            onClick={() => message.info('下载功能开发中')}
+            onClick={() => handleDownload(record)}
           >
             下载
           </Button>
