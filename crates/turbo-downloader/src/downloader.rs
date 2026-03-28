@@ -371,6 +371,14 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    // Helper to run async tests synchronously
+    fn block_on<F: std::future::Future>(future: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
+            .block_on(future)
+    }
+
     // ============== Unit Tests ==============
 
     #[test]
@@ -565,8 +573,8 @@ mod tests {
 
     // ============== Integration Tests ==============
 
-    #[tokio::test]
-    async fn test_downloader_cancel_integration() {
+    #[test]
+    fn test_downloader_cancel_integration() {
         let config = DownloadConfig {
             id: "cancel-test".to_string(),
             url: "http://test.com/file.txt".to_string(),
@@ -581,17 +589,19 @@ mod tests {
 
         let downloader = MultiThreadDownloader::new(config).unwrap();
         
-        // Cancel should work
-        let result = downloader.cancel().await;
-        assert!(result.is_ok());
-        
-        // Check cancelled flag is set
-        let is_cancelled = *downloader.cancelled.read().await;
-        assert!(is_cancelled);
+        block_on(async {
+            // Cancel should work
+            let result = downloader.cancel().await;
+            assert!(result.is_ok());
+            
+            // Check cancelled flag is set
+            let is_cancelled = *downloader.cancelled.read().await;
+            assert!(is_cancelled);
+        });
     }
 
-    #[tokio::test]
-    async fn test_retry_downloader_cancel() {
+    #[test]
+    fn test_retry_downloader_cancel() {
         let config = DownloadConfig {
             id: "retry-cancel-test".to_string(),
             url: "http://test.com/file.txt".to_string(),
@@ -607,12 +617,14 @@ mod tests {
         let retry_config = RetryConfig::new(3, 100);
         let downloader = RetryDownloader::new(config, retry_config).unwrap();
         
-        let result = downloader.cancel().await;
-        assert!(result.is_ok());
+        block_on(async {
+            let result = downloader.cancel().await;
+            assert!(result.is_ok());
+        });
     }
 
-    #[tokio::test]
-    async fn test_retry_config_delay_progression() {
+    #[test]
+    fn test_retry_config_delay_progression() {
         let config = RetryConfig {
             max_retries: 5,
             initial_delay_ms: 100,
@@ -631,8 +643,8 @@ mod tests {
         assert_eq!(delays[5], 3200);  // 100 * 2^5 (capped at 5000)
     }
 
-    #[tokio::test]
-    async fn test_multiple_downloader_instances() {
+    #[test]
+    fn test_multiple_downloader_instances() {
         let config1 = DownloadConfig {
             id: "instance-1".to_string(),
             url: "http://test.com/file1.txt".to_string(),
@@ -667,12 +679,14 @@ mod tests {
         let d1 = downloader1.unwrap();
         let d2 = downloader2.unwrap();
         
-        d1.cancel().await.unwrap();
-        
-        let is_d1_cancelled = *d1.cancelled.read().await;
-        let is_d2_cancelled = *d2.cancelled.read().await;
-        
-        assert!(is_d1_cancelled);
-        assert!(!is_d2_cancelled);
+        block_on(async {
+            d1.cancel().await.unwrap();
+            
+            let is_d1_cancelled = *d1.cancelled.read().await;
+            let is_d2_cancelled = *d2.cancelled.read().await;
+            
+            assert!(is_d1_cancelled);
+            assert!(!is_d2_cancelled);
+        });
     }
 }
