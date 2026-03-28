@@ -1,6 +1,7 @@
 use super::Chunk;
 use crate::{http::Client, Result};
 use std::path::Path;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
 /// Chunk progress message
@@ -42,9 +43,6 @@ impl Worker {
         progress_tx: mpsc::Sender<ChunkProgress>,
         max_retries: u32,
     ) -> Result<()> {
-        use tokio::fs::File;
-        use tokio::io::AsyncWriteExt;
-
         let mut retries = 0;
 
         loop {
@@ -63,7 +61,6 @@ impl Worker {
     /// Try to download chunk (single attempt)
     async fn try_download(&mut self, progress_tx: &mpsc::Sender<ChunkProgress>) -> Result<()> {
         use tokio::fs::OpenOptions;
-        use tokio::io::AsyncWriteExt;
 
         // Open file for append (resume support)
         let mut file = OpenOptions::new()

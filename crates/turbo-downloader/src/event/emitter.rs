@@ -1,4 +1,4 @@
-use super::{DownloadEvent, DownloadStatus};
+use super::DownloadEvent;
 
 /// Event emitter for download events
 pub struct EventEmitter {

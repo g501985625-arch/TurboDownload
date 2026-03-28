@@ -1,15 +1,15 @@
 //! Multi-threaded downloader implementation
 
 use crate::{
-    chunk::{ChunkManager, Worker as ChunkWorker},
-    download::{DownloadConfig, DownloadResult, Task},
+    chunk::ChunkManager,
+    download::{DownloadConfig, DownloadResult},
     error::{DownloadError, Result},
     event::EventEmitter,
     http::Client,
     pool::WorkerPool,
     progress::Tracker,
     range::RangeClient,
-    storage::{ChunkWriter, FileMerger, StateManager},
+    storage::{StateManager, ChunkWriter},
 };
 use std::sync::Arc;
 use tokio::sync::mpsc;
