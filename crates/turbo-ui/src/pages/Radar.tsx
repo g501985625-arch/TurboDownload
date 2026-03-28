@@ -29,7 +29,7 @@ interface ResourceItem {
 
 const Radar = () => {
   const [loading, setLoading] = useState(false);
-  const [url, setUrl] = useState('');
+  const [, setUrl] = useState('');
   const [resources, setResources] = useState<ResourceItem[]>([]);
 
   // Mock statistics data
@@ -130,7 +130,7 @@ const Radar = () => {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_, record) => (
+      render: () => (
         <Space size="small">
           <Button 
             type="link" 
