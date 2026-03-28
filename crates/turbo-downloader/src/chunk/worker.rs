@@ -32,6 +32,16 @@ impl Worker {
         self.chunk.id
     }
 
+    /// Get chunk reference
+    pub fn chunk(&self) -> &Chunk {
+        &self.chunk
+    }
+
+    /// Get chunk mutable reference
+    pub fn chunk_mut(&mut self) -> &mut Chunk {
+        &mut self.chunk
+    }
+
     /// Execute chunk download with retry
     pub async fn download(&mut self, progress_tx: mpsc::Sender<ChunkProgress>) -> Result<()> {
         self.download_with_retry(progress_tx, 3).await
