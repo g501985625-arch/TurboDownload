@@ -1,15 +1,26 @@
 import { createBrowserRouter } from 'react-router-dom';
+import Layout from '../components/Layout';
 import Home from '../pages/Home';
-import Dashboard from '../pages/Dashboard';
+import Download from '../pages/Download';
+import Radar from '../pages/Radar';
+import Settings from '../pages/Settings';
 
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Home />,
+    element: <Layout><Home /></Layout>,
   },
   {
-    path: '/dashboard',
-    element: <Dashboard />,
+    path: '/download',
+    element: <Layout><Download /></Layout>,
+  },
+  {
+    path: '/radar',
+    element: <Layout><Radar /></Layout>,
+  },
+  {
+    path: '/settings',
+    element: <Layout><Settings /></Layout>,
   },
 ]);
 
