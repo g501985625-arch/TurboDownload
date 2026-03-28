@@ -126,10 +126,11 @@ mod tests {
     use tempfile::TempDir;
     use wiremock::{matchers, Mock, MockServer, ResponseTemplate};
 
-    // Test 1: start_download basic functionality test
+    // Test 1: start_download with actual download via mock server
     #[tokio::test]
     async fn test_start_download_with_mock_server() {
         use wiremock::http::HeaderValue;
+        use tokio::fs;
         
         // Start a mock HTTP server
         let mock_server = MockServer::start().await;
@@ -137,42 +138,166 @@ mod tests {
         // Create a small test file content
         let test_content = b"Hello, World! This is test content for download.";
         let content_length = test_content.len() as u64;
+        let content_length_str = content_length.to_string();
         
-        // Setup mock endpoint for HEAD request
+        // Setup mock endpoint for HEAD request (range support check)
         Mock::given(matchers::method("HEAD"))
             .and(matchers::path("/test-file.txt"))
             .respond_with(ResponseTemplate::new(200)
-                .insert_header("Content-Length", HeaderValue::from_bytes(content_length.to_string().as_bytes().to_vec()).unwrap())
+                .insert_header("Content-Length", HeaderValue::from_bytes(content_length_str.as_bytes().to_vec()).unwrap())
                 .insert_header("Accept-Ranges", HeaderValue::from_bytes(b"bytes".to_vec()).unwrap()))
             .mount(&mock_server)
             .await;
             
-        // Setup mock endpoint for GET request
+        // Setup mock endpoint for GET request - just return full content
+        // (the downloader will handle Range headers if the server supports them)
         Mock::given(matchers::method("GET"))
             .and(matchers::path("/test-file.txt"))
             .respond_with(ResponseTemplate::new(200)
                 .set_body_bytes(test_content.to_vec())
-                .insert_header("Content-Length", HeaderValue::from_bytes(content_length.to_string().as_bytes().to_vec()).unwrap())
+                .insert_header("Content-Length", HeaderValue::from_bytes(content_length_str.as_bytes().to_vec()).unwrap())
                 .insert_header("Accept-Ranges", HeaderValue::from_bytes(b"bytes".to_vec()).unwrap()))
             .mount(&mock_server)
             .await;
             
         // Create temp output directory
-        let _temp_dir = TempDir::new().unwrap();
-        let _output_path = _temp_dir.path().join("downloaded.txt");
+        let temp_dir = TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("downloaded.txt");
         
-        // Verify the mock server URL is valid
+        // Build the mock server URL
         let url = format!("{}/test-file.txt", mock_server.uri());
         
-        // Verify URL is valid
-        assert!(url.starts_with("http://"));
-        assert!(url.contains("/test-file.txt"));
+        // Actually call start_download()
+        let result = start_download(url.clone(), output_path.clone(), 1).await;
         
-        // Verify the mock server responds correctly
-        let client = reqwest::Client::new();
-        let response = client.head(&url).send().await.unwrap();
-        assert_eq!(response.status(), 200);
-        assert!(response.headers().contains_key("content-length"));
+        // Verify download succeeded
+        assert!(result.is_ok(), "Download should succeed: {:?}", result.err());
+        
+        // Verify the downloaded file exists and has correct content
+        assert!(output_path.exists(), "Downloaded file should exist");
+        
+        // Verify content matches
+        let downloaded_content = fs::read(&output_path).await.unwrap();
+        assert_eq!(downloaded_content, test_content, "Downloaded content should match original");
+        
+        // Verify file size
+        let metadata = fs::metadata(&output_path).await.unwrap();
+        assert_eq!(metadata.len() as usize, test_content.len());
+    }
+
+    // Test 1b: start_download with config and multi-thread
+    #[tokio::test]
+    async fn test_start_download_with_config_actual_download() {
+        use wiremock::http::HeaderValue;
+        use tokio::fs;
+        
+        // Start a mock HTTP server
+        let mock_server = MockServer::start().await;
+        
+        // Create a larger test file content to support multi-chunk download
+        let test_content = b"The quick brown fox jumps over the lazy dog. This is a test file for multi-threaded download. abcdefghijklmnopqrstuvwxyz0123456789";
+        let content_length = test_content.len() as u64;
+        let content_length_str = content_length.to_string();
+        
+        // HEAD request - check range support
+        Mock::given(matchers::method("HEAD"))
+            .and(matchers::path("/large-file.txt"))
+            .respond_with(ResponseTemplate::new(200)
+                .insert_header("Content-Length", HeaderValue::from_bytes(content_length_str.as_bytes().to_vec()).unwrap())
+                .insert_header("Accept-Ranges", HeaderValue::from_bytes(b"bytes".to_vec()).unwrap()))
+            .mount(&mock_server)
+            .await;
+            
+        // GET request - return full content (for non-range requests)
+        Mock::given(matchers::method("GET"))
+            .and(matchers::path("/large-file.txt"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_bytes(test_content.to_vec())
+                .insert_header("Content-Length", HeaderValue::from_bytes(content_length_str.as_bytes().to_vec()).unwrap())
+                .insert_header("Accept-Ranges", HeaderValue::from_bytes(b"bytes".to_vec()).unwrap()))
+            .mount(&mock_server)
+            .await;
+            
+        // Create temp output directory
+        let temp_dir = TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("large-file.txt");
+        
+        let url = format!("{}/large-file.txt", mock_server.uri());
+        
+        // Use start_download_with_config
+        let config = DownloadConfig {
+            id: "test-multi-thread-123".to_string(),
+            url,
+            output_path: output_path.clone(),
+            threads: 4,
+            chunk_size: 1024, // Small chunks to test multi-thread
+            resume_support: true,
+            user_agent: Some("TurboDownload/1.0".to_string()),
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+        
+        let result = start_download_with_config(config).await;
+        
+        assert!(result.is_ok(), "Download should succeed: {:?}", result.err());
+        
+        // Verify content
+        let downloaded_content = fs::read(&output_path).await.unwrap();
+        assert_eq!(downloaded_content, test_content);
+    }
+
+    // Test 1c: start_download with invalid URL should fail
+    #[tokio::test]
+    async fn test_start_download_invalid_url() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("invalid.txt");
+        
+        // Invalid URL (not a valid HTTP URL)
+        let result = start_download("not-a-valid-url".to_string(), output_path, 1).await;
+        
+        // Should fail with an error
+        assert!(result.is_err());
+    }
+
+    // Test 1d: start_download with unreachable server
+    #[tokio::test]
+    async fn test_start_download_unreachable_server() {
+        let temp_dir = TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("unreachable.txt");
+        
+        // Use a URL to a non-routable address
+        let result = start_download(
+            "http://192.0.2.1/test.txt".to_string(), 
+            output_path, 
+            1
+        ).await;
+        
+        // Should fail with network error
+        assert!(result.is_err());
+    }
+
+    // Test 1e: start_download with 404 response
+    #[tokio::test]
+    async fn test_start_download_404_error() {
+        use wiremock::http::HeaderValue;
+        
+        let mock_server = MockServer::start().await;
+        
+        // Return 404 for all requests
+        Mock::given(matchers::any())
+            .respond_with(ResponseTemplate::new(404)
+                .insert_header("Content-Length", HeaderValue::from_bytes(b"0".to_vec()).unwrap()))
+            .mount(&mock_server)
+            .await;
+            
+        let temp_dir = TempDir::new().unwrap();
+        let output_path = temp_dir.path().join("notfound.txt");
+        
+        let url = format!("{}/not-exist.txt", mock_server.uri());
+        let result = start_download(url, output_path, 1).await;
+        
+        // Should fail with HTTP error
+        assert!(result.is_err());
     }
 
     // Test 2: pause_download command framework

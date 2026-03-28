@@ -15,6 +15,105 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 
+/// Retry configuration for download operations
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    /// Maximum number of retry attempts
+    pub max_retries: u32,
+    /// Initial retry delay in milliseconds
+    pub initial_delay_ms: u64,
+    /// Maximum retry delay in milliseconds
+    pub max_delay_ms: u64,
+    /// Backoff multiplier
+    pub backoff_multiplier: f64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            initial_delay_ms: 1000,
+            max_delay_ms: 30000,
+            backoff_multiplier: 2.0,
+        }
+    }
+}
+
+impl RetryConfig {
+    /// Create a new retry config with custom settings
+    pub fn new(max_retries: u32, initial_delay_ms: u64) -> Self {
+        Self {
+            max_retries,
+            initial_delay_ms,
+            max_delay_ms: 30000,
+            backoff_multiplier: 2.0,
+        }
+    }
+
+    /// Calculate the delay for a given attempt (0-indexed)
+    pub fn calculate_delay(&self, attempt: u32) -> u64 {
+        let delay = (self.initial_delay_ms as f64 * self.backoff_multiplier.powi(attempt as i32)) as u64;
+        delay.min(self.max_delay_ms)
+    }
+}
+
+/// Downloader with retry support
+pub struct RetryDownloader {
+    inner: MultiThreadDownloader,
+    retry_config: RetryConfig,
+}
+
+impl RetryDownloader {
+    /// Create a new retry downloader
+    pub fn new(config: DownloadConfig, retry_config: RetryConfig) -> Result<Self> {
+        let inner = MultiThreadDownloader::new(config)?;
+        Ok(Self { inner, retry_config })
+    }
+
+    /// Download with automatic retry on failure
+    pub async fn download_with_retry(&self) -> Result<DownloadResult> {
+        let mut last_error: Option<DownloadError> = None;
+        
+        for attempt in 0..=self.retry_config.max_retries {
+            match self.inner.download().await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    // Check if error is retryable
+                    if !e.is_retryable() || attempt == self.retry_config.max_retries {
+                        return Err(e);
+                    }
+                    
+                    last_error = Some(e);
+                    
+                    // Calculate and wait for retry delay
+                    let delay = self.retry_config.calculate_delay(attempt);
+                    tracing::warn!(
+                        "Download failed (attempt {}/{}), retrying in {}ms",
+                        attempt + 1,
+                        self.retry_config.max_retries + 1,
+                        delay
+                    );
+                    
+                    tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
+                }
+            }
+        }
+        
+        // This should never happen but just in case
+        Err(last_error.unwrap_or_else(|| DownloadError::Internal("Max retries exceeded".to_string())))
+    }
+
+    /// Cancel the download
+    pub async fn cancel(&self) -> Result<()> {
+        self.inner.cancel().await
+    }
+
+    /// Get the inner downloader
+    pub fn inner(&self) -> &MultiThreadDownloader {
+        &self.inner
+    }
+}
+
 /// Multi-threaded downloader
 pub struct MultiThreadDownloader {
     config: DownloadConfig,
@@ -272,6 +371,8 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    // ============== Unit Tests ==============
+
     #[test]
     fn test_downloader_creation() {
         let config = DownloadConfig {
@@ -288,5 +389,290 @@ mod tests {
 
         let downloader = MultiThreadDownloader::new(config);
         assert!(downloader.is_ok());
+    }
+
+    #[test]
+    fn test_retry_config_default() {
+        let config = RetryConfig::default();
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.initial_delay_ms, 1000);
+        assert_eq!(config.max_delay_ms, 30000);
+        assert!((config.backoff_multiplier - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_retry_config_custom() {
+        let config = RetryConfig::new(5, 500);
+        assert_eq!(config.max_retries, 5);
+        assert_eq!(config.initial_delay_ms, 500);
+    }
+
+    #[test]
+    fn test_retry_config_calculate_delay() {
+        let config = RetryConfig::default();
+        
+        // First attempt: 1000 * 2^0 = 1000ms
+        assert_eq!(config.calculate_delay(0), 1000);
+        
+        // Second attempt: 1000 * 2^1 = 2000ms
+        assert_eq!(config.calculate_delay(1), 2000);
+        
+        // Third attempt: 1000 * 2^2 = 4000ms
+        assert_eq!(config.calculate_delay(2), 4000);
+        
+        // Fourth attempt: 1000 * 2^3 = 8000ms (capped at max_delay_ms = 30000)
+        assert_eq!(config.calculate_delay(3), 8000);
+        
+        // Very high attempt: capped at max_delay_ms
+        assert_eq!(config.calculate_delay(10), 30000);
+    }
+
+    #[test]
+    fn test_retry_config_backoff() {
+        // Test with custom backoff multiplier
+        let config = RetryConfig {
+            max_retries: 5,
+            initial_delay_ms: 100,
+            max_delay_ms: 10000,
+            backoff_multiplier: 3.0,
+        };
+        
+        assert_eq!(config.calculate_delay(0), 100);
+        assert_eq!(config.calculate_delay(1), 300);
+        assert_eq!(config.calculate_delay(2), 900);
+        assert_eq!(config.calculate_delay(3), 2700);
+    }
+
+    #[test]
+    fn test_temp_dir_generation() {
+        let config = DownloadConfig {
+            id: "test-id-123".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/output.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let downloader = MultiThreadDownloader::new(config).unwrap();
+        let temp_dir = downloader.get_temp_dir();
+        
+        // Should contain the task ID
+        assert!(temp_dir.to_string_lossy().contains("test-id-123"));
+        // Should be under temp directory
+        assert!(temp_dir.to_string_lossy().contains("turbo-download"));
+    }
+
+    #[test]
+    fn test_cancelled_flag_initial_state() {
+        let config = DownloadConfig {
+            id: "test".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let downloader = MultiThreadDownloader::new(config).unwrap();
+        
+        // Check initial cancelled state is false
+        let cancelled = downloader.cancelled.clone();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        
+        runtime.block_on(async {
+            let is_cancelled = *cancelled.read().await;
+            assert!(!is_cancelled);
+        });
+    }
+
+    #[test]
+    fn test_pause_returns_ok() {
+        let config = DownloadConfig {
+            id: "test".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let downloader = MultiThreadDownloader::new(config).unwrap();
+        
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        
+        runtime.block_on(async {
+            let result = downloader.pause().await;
+            assert!(result.is_ok());
+        });
+    }
+
+    // ============== Retry Downloader Tests ==============
+
+    #[test]
+    fn test_retry_downloader_creation() {
+        let config = DownloadConfig {
+            id: "retry-test".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let retry_config = RetryConfig::default();
+        let downloader = RetryDownloader::new(config, retry_config);
+        assert!(downloader.is_ok());
+    }
+
+    #[test]
+    fn test_retry_downloader_inner_access() {
+        let config = DownloadConfig {
+            id: "retry-test".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let retry_config = RetryConfig::default();
+        let downloader = RetryDownloader::new(config, retry_config).unwrap();
+        let _inner = downloader.inner();
+        
+        // Inner should be accessible
+        assert!(true);
+    }
+
+    // ============== Integration Tests ==============
+
+    #[tokio::test]
+    async fn test_downloader_cancel_integration() {
+        let config = DownloadConfig {
+            id: "cancel-test".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test_cancel.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let downloader = MultiThreadDownloader::new(config).unwrap();
+        
+        // Cancel should work
+        let result = downloader.cancel().await;
+        assert!(result.is_ok());
+        
+        // Check cancelled flag is set
+        let is_cancelled = *downloader.cancelled.read().await;
+        assert!(is_cancelled);
+    }
+
+    #[tokio::test]
+    async fn test_retry_downloader_cancel() {
+        let config = DownloadConfig {
+            id: "retry-cancel-test".to_string(),
+            url: "http://test.com/file.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test_retry_cancel.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let retry_config = RetryConfig::new(3, 100);
+        let downloader = RetryDownloader::new(config, retry_config).unwrap();
+        
+        let result = downloader.cancel().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_retry_config_delay_progression() {
+        let config = RetryConfig {
+            max_retries: 5,
+            initial_delay_ms: 100,
+            max_delay_ms: 5000,
+            backoff_multiplier: 2.0,
+        };
+        
+        let delays: Vec<u64> = (0..=5).map(|i| config.calculate_delay(i)).collect();
+        
+        // Should follow exponential backoff
+        assert_eq!(delays[0], 100);   // 100 * 2^0
+        assert_eq!(delays[1], 200);   // 100 * 2^1
+        assert_eq!(delays[2], 400);   // 100 * 2^2
+        assert_eq!(delays[3], 800);   // 100 * 2^3
+        assert_eq!(delays[4], 1600);  // 100 * 2^4
+        assert_eq!(delays[5], 3200);  // 100 * 2^5 (capped at 5000)
+    }
+
+    #[tokio::test]
+    async fn test_multiple_downloader_instances() {
+        let config1 = DownloadConfig {
+            id: "instance-1".to_string(),
+            url: "http://test.com/file1.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test1.txt"),
+            threads: 2,
+            chunk_size: 512 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let config2 = DownloadConfig {
+            id: "instance-2".to_string(),
+            url: "http://test.com/file2.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test2.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: None,
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+
+        let downloader1 = MultiThreadDownloader::new(config1);
+        let downloader2 = MultiThreadDownloader::new(config2);
+        
+        assert!(downloader1.is_ok());
+        assert!(downloader2.is_ok());
+        
+        // Both should have independent cancelled flags
+        let d1 = downloader1.unwrap();
+        let d2 = downloader2.unwrap();
+        
+        d1.cancel().await.unwrap();
+        
+        let is_d1_cancelled = *d1.cancelled.read().await;
+        let is_d2_cancelled = *d2.cancelled.read().await;
+        
+        assert!(is_d1_cancelled);
+        assert!(!is_d2_cancelled);
     }
 }
