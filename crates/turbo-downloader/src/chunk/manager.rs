@@ -104,3 +104,124 @@ impl ChunkManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_chunk_manager_creation() {
+        let temp_dir = PathBuf::from("/tmp/test");
+        let manager = ChunkManager::new(1024 * 1024, 256 * 1024, temp_dir);
+        
+        assert_eq!(manager.total_size(), 1024 * 1024);
+        assert_eq!(manager.total_downloaded(), 0);
+        assert_eq!(manager.progress_percent(), 0.0);
+    }
+
+    #[test]
+    fn test_calculate_chunks() {
+        let temp_dir = PathBuf::from("/tmp/test");
+        let mut manager = ChunkManager::new(1024 * 1024, 256 * 1024, temp_dir);
+        
+        manager.calculate_chunks(4);
+        
+        // Should create 4 chunks of 256KB each
+        assert_eq!(manager.chunks().len(), 4);
+        
+        // Check first chunk
+        let first = &manager.chunks()[0];
+        assert_eq!(first.id, 0);
+        assert_eq!(first.start, 0);
+        assert_eq!(first.end, 256 * 1024);
+        
+        // Check last chunk
+        let last = &manager.chunks()[3];
+        assert_eq!(last.id, 3);
+        assert_eq!(last.start, 768 * 1024);
+        assert_eq!(last.end, 1024 * 1024);
+    }
+
+    #[test]
+    fn test_get_next_pending() {
+        let temp_dir = PathBuf::from("/tmp/test");
+        let mut manager = ChunkManager::new(1024 * 1024, 512 * 1024, temp_dir);
+        manager.calculate_chunks(2);
+        
+        // Get first pending chunk
+        let chunk = manager.get_next_pending();
+        assert!(chunk.is_some());
+        assert_eq!(chunk.unwrap().id, 0);
+        
+        // Mark first as completed
+        manager.mark_completed(0);
+        
+        // Get next pending
+        let chunk = manager.get_next_pending();
+        assert!(chunk.is_some());
+        assert_eq!(chunk.unwrap().id, 1);
+        
+        // Mark second as completed
+        manager.mark_completed(1);
+        
+        // No more pending
+        let chunk = manager.get_next_pending();
+        assert!(chunk.is_none());
+    }
+
+    #[test]
+    fn test_pending_count() {
+        let temp_dir = PathBuf::from("/tmp/test");
+        let mut manager = ChunkManager::new(1024 * 1024, 256 * 1024, temp_dir);
+        manager.calculate_chunks(4);
+        
+        assert_eq!(manager.pending_count(), 4);
+        
+        manager.mark_completed(0);
+        assert_eq!(manager.pending_count(), 3);
+        
+        manager.mark_failed(1);
+        assert_eq!(manager.pending_count(), 3); // Failed is also not completed
+    }
+
+    #[test]
+    fn test_progress_percent() {
+        let temp_dir = PathBuf::from("/tmp/test");
+        let mut manager = ChunkManager::new(1000, 250, temp_dir);
+        manager.calculate_chunks(4);
+        
+        assert_eq!(manager.progress_percent(), 0.0);
+        
+        // Update first chunk to 50% complete
+        manager.update_chunk(0, 125, ChunkState::Downloading);
+        assert_eq!(manager.progress_percent(), 12.5);
+        
+        // Complete first chunk
+        manager.mark_completed(0);
+        assert_eq!(manager.progress_percent(), 25.0);
+    }
+
+    #[test]
+    fn test_chunk_state_transitions() {
+        let temp_dir = PathBuf::from("/tmp/test");
+        let mut manager = ChunkManager::new(1024, 512, temp_dir);
+        manager.calculate_chunks(2);
+        
+        // Initial state
+        assert_eq!(manager.chunks()[0].state, ChunkState::Pending);
+        
+        // Mark as downloading
+        manager.mark_downloading(0);
+        assert_eq!(manager.chunks()[0].state, ChunkState::Downloading);
+        
+        // Mark as completed
+        manager.mark_completed(0);
+        assert_eq!(manager.chunks()[0].state, ChunkState::Completed);
+        assert_eq!(manager.chunks()[0].downloaded, 512);
+        
+        // Mark as failed
+        manager.mark_failed(1);
+        assert_eq!(manager.chunks()[1].state, ChunkState::Failed);
+    }
+}

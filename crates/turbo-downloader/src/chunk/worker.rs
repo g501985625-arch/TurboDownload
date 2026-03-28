@@ -82,14 +82,13 @@ impl Worker {
             downloaded += bytes.len() as u64;
             self.chunk.downloaded = downloaded;
 
-            // Send progress update
+            // Send progress update (ignore send error if receiver is dropped)
             let _ = progress_tx
-                .send(ChunkProgress {
+                .try_send(ChunkProgress {
                     chunk_id: self.chunk.id,
                     downloaded,
                     total: self.chunk.size(),
-                })
-                .await;
+                });
         }
 
         file.flush().await?;
@@ -98,5 +97,33 @@ impl Worker {
 
     pub fn temp_path(&self) -> &Path {
         &self.chunk.temp_path
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chunk::Chunk;
+
+    #[test]
+    fn test_chunk_progress_creation() {
+        let progress = ChunkProgress {
+            chunk_id: 1,
+            downloaded: 100,
+            total: 1000,
+        };
+        assert_eq!(progress.chunk_id, 1);
+        assert_eq!(progress.downloaded, 100);
+        assert_eq!(progress.total, 1000);
+    }
+
+    #[test]
+    fn test_worker_creation() {
+        let temp_dir = std::env::temp_dir();
+        let chunk = Chunk::new(0, 0, 1024, &temp_dir);
+        let client = Client::new(Default::default()).unwrap();
+        let worker = Worker::new(chunk, "http://example.com/file.txt".to_string(), client);
+        
+        assert_eq!(worker.chunk_id(), 0);
     }
 }

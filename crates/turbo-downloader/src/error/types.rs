@@ -52,6 +52,10 @@ pub enum DownloadError {
     /// Internal error
     #[error("Internal error: {0}")]
     Internal(String),
+
+    /// Worker pool closed
+    #[error("Worker pool closed")]
+    PoolClosed,
 }
 
 impl From<serde_json::Error> for DownloadError {
@@ -84,6 +88,7 @@ impl DownloadError {
             DownloadError::FileExists(_) => "FILE_EXISTS",
             DownloadError::InvalidUrl(_) => "INVALID_URL",
             DownloadError::Internal(_) => "INTERNAL",
+            DownloadError::PoolClosed => "POOL_CLOSED",
         }
     }
 }
