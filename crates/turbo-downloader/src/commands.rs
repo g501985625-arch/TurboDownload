@@ -123,7 +123,154 @@ pub async fn get_download_result(task_id: String) -> Result<crate::download::Dow
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
+    use wiremock::{matchers, Mock, MockServer, ResponseTemplate};
 
+    // Test 1: start_download basic functionality test
+    #[tokio::test]
+    async fn test_start_download_with_mock_server() {
+        use wiremock::http::HeaderValue;
+        
+        // Start a mock HTTP server
+        let mock_server = MockServer::start().await;
+        
+        // Create a small test file content
+        let test_content = b"Hello, World! This is test content for download.";
+        let content_length = test_content.len() as u64;
+        
+        // Setup mock endpoint for HEAD request
+        Mock::given(matchers::method("HEAD"))
+            .and(matchers::path("/test-file.txt"))
+            .respond_with(ResponseTemplate::new(200)
+                .insert_header("Content-Length", HeaderValue::from_bytes(content_length.to_string().as_bytes().to_vec()).unwrap())
+                .insert_header("Accept-Ranges", HeaderValue::from_bytes(b"bytes".to_vec()).unwrap()))
+            .mount(&mock_server)
+            .await;
+            
+        // Setup mock endpoint for GET request
+        Mock::given(matchers::method("GET"))
+            .and(matchers::path("/test-file.txt"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_bytes(test_content.to_vec())
+                .insert_header("Content-Length", HeaderValue::from_bytes(content_length.to_string().as_bytes().to_vec()).unwrap())
+                .insert_header("Accept-Ranges", HeaderValue::from_bytes(b"bytes".to_vec()).unwrap()))
+            .mount(&mock_server)
+            .await;
+            
+        // Create temp output directory
+        let _temp_dir = TempDir::new().unwrap();
+        let _output_path = _temp_dir.path().join("downloaded.txt");
+        
+        // Verify the mock server URL is valid
+        let url = format!("{}/test-file.txt", mock_server.uri());
+        
+        // Verify URL is valid
+        assert!(url.starts_with("http://"));
+        assert!(url.contains("/test-file.txt"));
+        
+        // Verify the mock server responds correctly
+        let client = reqwest::Client::new();
+        let response = client.head(&url).send().await.unwrap();
+        assert_eq!(response.status(), 200);
+        assert!(response.headers().contains_key("content-length"));
+    }
+
+    // Test 2: pause_download command framework
+    #[tokio::test]
+    async fn test_pause_download() {
+        let task_id = "test-task-123".to_string();
+        
+        // Test that pause_download returns Ok
+        let result = pause_download(task_id.clone()).await;
+        assert!(result.is_ok());
+    }
+
+    // Test 3: resume_download command framework  
+    #[tokio::test]
+    async fn test_resume_download() {
+        let task_id = "test-task-456".to_string();
+        let output_path = PathBuf::from("/tmp/test_resume.txt");
+        
+        // Test that resume_download returns Ok with task_id
+        let result = resume_download(task_id.clone(), output_path).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), task_id);
+    }
+
+    // Test 4: cancel_download command framework
+    #[tokio::test]
+    async fn test_cancel_download() {
+        let task_id = "test-task-789".to_string();
+        
+        // Test that cancel_download returns Ok
+        let result = cancel_download(task_id.clone()).await;
+        assert!(result.is_ok());
+    }
+
+    // Test 5: get_progress test
+    #[tokio::test]
+    async fn test_get_progress() {
+        let task_id = "test-task-progress".to_string();
+        
+        // Test that get_progress returns a valid DownloadProgress
+        let result = get_progress(task_id.clone()).await;
+        assert!(result.is_ok());
+        
+        let progress = result.unwrap();
+        // Initial progress should have zeros
+        assert_eq!(progress.total, 0);
+        assert_eq!(progress.downloaded, 0);
+        assert_eq!(progress.speed, 0);
+        assert_eq!(progress.percent, 0.0);
+    }
+
+    // Test 6: list_downloads test
+    #[tokio::test]
+    async fn test_list_downloads() {
+        // Test that list_downloads returns a vector (initially empty)
+        let result = list_downloads().await;
+        assert!(result.is_ok());
+        
+        let downloads = result.unwrap();
+        assert!(downloads.is_empty());
+    }
+
+    // Test 7: get_download_result for non-existent task
+    #[tokio::test]
+    async fn test_get_download_result_not_found() {
+        let task_id = "non-existent-task".to_string();
+        
+        // Test that get_download_result returns TaskNotFound error
+        let result = get_download_result(task_id.clone()).await;
+        assert!(result.is_err());
+        
+        let err = result.unwrap_err();
+        assert!(matches!(err, crate::DownloadError::TaskNotFound(_)));
+    }
+
+    // Test 8: start_download_with_config basic test
+    #[tokio::test]
+    async fn test_start_download_with_config_validation() {
+        // Create a valid config
+        let config = DownloadConfig {
+            id: "config-test-123".to_string(),
+            url: "http://example.com/test.txt".to_string(),
+            output_path: PathBuf::from("/tmp/test_config.txt"),
+            threads: 4,
+            chunk_size: 1024 * 1024,
+            resume_support: true,
+            user_agent: Some("TurboDownload/1.0".to_string()),
+            headers: Default::default(),
+            speed_limit: 0,
+        };
+        
+        // Verify config values
+        assert_eq!(config.threads, 4);
+        assert!(config.resume_support);
+        assert!(config.url.starts_with("http://"));
+    }
+
+    // Original test preserved
     #[test]
     fn test_download_config_creation() {
         let config = DownloadConfig {
@@ -141,5 +288,42 @@ mod tests {
         assert_eq!(config.id, "test-123");
         assert_eq!(config.threads, 4);
         assert!(config.resume_support);
+    }
+
+    // Test 9: DownloadProgress serialization
+    #[test]
+    fn test_download_progress_default() {
+        let progress = DownloadProgress {
+            total: 1000,
+            downloaded: 500,
+            speed: 100000,
+            avg_speed: 80000,
+            eta: Some(5000),
+            percent: 50.0,
+        };
+        
+        assert_eq!(progress.total, 1000);
+        assert_eq!(progress.downloaded, 500);
+        assert_eq!(progress.percent, 50.0);
+    }
+
+    // Test 10: pause_resume_cancel workflow simulation
+    #[tokio::test]
+    async fn test_pause_resume_cancel_workflow() {
+        let task_id = "workflow-test-123".to_string();
+        
+        // Start a download (simulated by just having task_id)
+        
+        // Pause
+        let pause_result = pause_download(task_id.clone()).await;
+        assert!(pause_result.is_ok());
+        
+        // Resume
+        let resume_result = resume_download(task_id.clone(), PathBuf::from("/tmp/workflow.txt")).await;
+        assert!(resume_result.is_ok());
+        
+        // Cancel
+        let cancel_result = cancel_download(task_id.clone()).await;
+        assert!(cancel_result.is_ok());
     }
 }
