@@ -82,18 +82,24 @@ impl Crawler {
         })
     }
     
-    /// Crawl multiple URLs
+    /// Crawl multiple URLs concurrently
     pub async fn crawl_batch(&self, urls: Vec<String>) -> Result<Vec<CrawlResult>> {
-        let mut results = Vec::new();
+        use futures::stream::{self, StreamExt};
         
-        for url in urls.into_iter().take(self.config.max_pages) {
-            match self.crawl(&url).await {
-                Ok(result) => results.push(result),
-                Err(e) => {
-                    tracing::warn!("Failed to crawl {}: {}", url, e);
+        let results: Vec<CrawlResult> = stream::iter(urls.into_iter().take(self.config.max_pages))
+            .map(|url| async move {
+                match self.crawl(&url).await {
+                    Ok(result) => Some(result),
+                    Err(e) => {
+                        tracing::warn!("Failed to crawl {}: {}", url, e);
+                        None
+                    }
                 }
-            }
-        }
+            })
+            .buffer_unordered(self.config.max_concurrent)
+            .filter_map(|r| async { r })
+            .collect()
+            .await;
         
         Ok(results)
     }
@@ -119,7 +125,7 @@ impl Crawler {
         
         scheduler.add(start_url.to_string());
         
-        while let Some(url) = scheduler.next() {
+        while let Some((url, depth)) = scheduler.next() {
             if pages_scanned >= self.config.max_pages {
                 break;
             }
@@ -138,14 +144,16 @@ impl Crawler {
                     let extractor = ResourceExtractor::new(&url);
                     let resources = extractor.extract(&html)?;
                     
-                    // Add new URLs to scheduler
+                    // Add new URLs to scheduler with incremented depth
+                    let next_depth = depth + 1;
                     for resource in &resources {
                         if let Ok(parsed) = url::Url::parse(&resource.url) {
                             // Only add URLs from same domain
                             if let Some(host) = parsed.host_str() {
                                 if let Some(ref start) = start_host {
-                                    if host.contains(start) || host == start {
-                                        scheduler.add(resource.url.clone());
+                                    // Use exact match or subdomain match instead of contains
+                                    if host == start || host.ends_with(&format!(".{}", start)) {
+                                        scheduler.add_with_depth(resource.url.clone(), next_depth);
                                     }
                                 }
                             }

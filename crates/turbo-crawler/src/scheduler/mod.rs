@@ -15,13 +15,19 @@ pub enum QueuePolicy {
     Priority,
 }
 
+/// Queue entry with depth tracking
+#[derive(Debug, Clone)]
+struct QueueEntry {
+    url: String,
+    depth: usize,
+}
+
 /// URL scheduler with concurrency control
 pub struct UrlScheduler {
-    queue: VecDeque<String>,
+    queue: VecDeque<QueueEntry>,
     visited: Arc<RwLock<HashSet<String>>>,
     policy: QueuePolicy,
     max_depth: usize,
-    current_depth: usize,
     rate_limit: Duration,
     last_request: RwLock<Instant>,
     /// Concurrent request limit
@@ -38,7 +44,6 @@ impl UrlScheduler {
             visited: Arc::new(RwLock::new(HashSet::new())),
             policy,
             max_depth,
-            current_depth: 0,
             rate_limit,
             last_request: RwLock::new(Instant::now()),
             max_concurrent: 3,
@@ -53,7 +58,6 @@ impl UrlScheduler {
             visited: Arc::new(RwLock::new(HashSet::new())),
             policy,
             max_depth,
-            current_depth: 0,
             rate_limit,
             last_request: RwLock::new(Instant::now()),
             max_concurrent,
@@ -61,28 +65,36 @@ impl UrlScheduler {
         }
     }
     
-    /// Add URL to queue
+    /// Add URL to queue with depth 0 (entry point)
     pub fn add(&mut self, url: String) {
+        self.add_with_depth(url, 0);
+    }
+    
+    /// Add URL to queue with specific depth
+    pub fn add_with_depth(&mut self, url: String, depth: usize) {
         // Check if already visited
         if self.is_visited(&url) {
             return;
         }
         
         // Check depth limit
-        if self.current_depth >= self.max_depth && !self.queue.is_empty() {
+        if depth > self.max_depth {
             return;
         }
         
+        let entry = QueueEntry { url, depth };
+        
         match self.policy {
-            QueuePolicy::Fifo => self.queue.push_back(url),
-            QueuePolicy::Lifo => self.queue.push_front(url),
-            QueuePolicy::Priority => self.queue.push_back(url),
+            QueuePolicy::Fifo => self.queue.push_back(entry),
+            QueuePolicy::Lifo => self.queue.push_front(entry),
+            QueuePolicy::Priority => self.queue.push_back(entry),
         }
     }
     
     /// Get next URL from queue (check concurrency)
+    /// Returns (url, depth) tuple
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Option<String> {
+    pub fn next(&mut self) -> Option<(String, usize)> {
         // Check if at concurrency limit
         let active = *self.active.read().unwrap();
         if active >= self.max_concurrent {
@@ -101,10 +113,10 @@ impl UrlScheduler {
         }
         
         // Get URL from queue
-        let url = self.queue.pop_front()?;
+        let entry = self.queue.pop_front()?;
         
         // Mark as visited
-        self.visited.write().unwrap().insert(url.clone());
+        self.visited.write().unwrap().insert(entry.url.clone());
         
         // Update last request time
         *self.last_request.write().unwrap() = Instant::now();
@@ -112,10 +124,12 @@ impl UrlScheduler {
         // Increment active count
         *self.active.write().unwrap() += 1;
         
-        // Increment depth
-        self.current_depth += 1;
-        
-        Some(url)
+        Some((entry.url, entry.depth))
+    }
+    
+    /// Get next URL only (backward compatible)
+    pub fn next_url(&mut self) -> Option<String> {
+        self.next().map(|(url, _)| url)
     }
     
     /// Mark a URL as completed (decrement active count)
@@ -141,10 +155,17 @@ impl UrlScheduler {
         self.queue.is_empty()
     }
     
-    /// Add multiple URLs
+    /// Add multiple URLs at depth 0
     pub fn add_batch(&mut self, urls: Vec<String>) {
         for url in urls {
             self.add(url);
+        }
+    }
+    
+    /// Add multiple URLs with specific depth
+    pub fn add_batch_with_depth(&mut self, urls: Vec<String>, depth: usize) {
+        for url in urls {
+            self.add_with_depth(url, depth);
         }
     }
     
@@ -162,7 +183,6 @@ impl UrlScheduler {
     pub fn reset(&mut self) {
         self.queue.clear();
         self.visited.write().unwrap().clear();
-        self.current_depth = 0;
         *self.active.write().unwrap() = 0;
     }
 }
