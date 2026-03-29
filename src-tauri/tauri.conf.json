@@ -1,19 +1,22 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "TurboDownload",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "identifier": "com.turbodownload.app",
+
   "build": {
-    "beforeDevCommand": "cd ../crates/turbo-ui && npm run dev",
+    "beforeDevCommand": "cd ../../crates/turbo-ui && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "cd ../crates/turbo-ui && npm run build",
+    "beforeBuildCommand": "cd ../../crates/turbo-ui && npm run build",
     "frontendDist": "../crates/turbo-ui/dist"
   },
+
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "TurboDownload",
+        "title": "TurboDownload - High Performance Download Manager",
+        "label": "main",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -22,18 +25,80 @@
         "fullscreen": false,
         "decorations": true,
         "transparent": false,
-        "center": true
+        "center": true,
+        "visible": true,
+        "focus": true,
+        "alwaysOnTop": false,
+        "skipTaskbar": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:; font-src 'self' data:"
     }
   },
+
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "category": "Utility",
+    "shortDescription": "High-performance download manager",
+    "longDescription": "TurboDownload is a fast, multi-threaded download manager with resume support, web scraping capabilities, and real-time progress tracking. Built with Rust and Tauri for optimal performance.",
+    "copyright": "Copyright © 2026 TurboDownload Team",
+    "publisher": "TurboDownload Team",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": null,
+      "wix": null,
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    },
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": null,
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "deb": {
+        "depends": []
+      },
+      "rpm": {
+        "release": "1"
+      }
+    }
+  },
+
   "plugins": {
     "shell": {
       "open": true
     },
-    "dialog": {},
-    "notification": {}
+    "dialog": {
+      "all": true
+    },
+    "notification": {
+      "all": true
+    },
+    "fs": {
+      "all": true,
+      "scope": ["$APPDATA/**", "$DOWNLOAD/**", "$HOME/**", "$TEMP/**"]
+    },
+    "http": {
+      "all": true,
+      "scope": ["http://**", "https://**"]
+    }
   }
 }
