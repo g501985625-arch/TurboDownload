@@ -8,7 +8,7 @@
     "beforeDevCommand": "cd ../../crates/turbo-ui && npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "cd ../../crates/turbo-ui && npm run build",
-    "frontendDist": "../crates/turbo-ui/dist"
+    "frontendDist": "../../crates/turbo-ui/dist"
   },
 
   "app": {
