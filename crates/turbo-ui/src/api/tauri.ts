@@ -7,7 +7,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
   DownloadConfig,
-  DownloadTask,
   DownloadProgress,
   DownloadResult,
   ScanResult,

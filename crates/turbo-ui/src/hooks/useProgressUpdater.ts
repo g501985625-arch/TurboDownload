@@ -30,7 +30,7 @@ export function useProgressUpdater(options: UseProgressUpdaterOptions = {}) {
   
   const refreshProgress = useDownloadStore((state) => state.refreshProgress);
   const activeTaskIds = useDownloadStore((state) => state.activeTaskIds);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   const updateProgress = useCallback(async () => {
     if (activeTaskIds.length === 0) return;

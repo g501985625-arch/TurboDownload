@@ -4,7 +4,7 @@ import { PlusOutlined, LinkOutlined, ClearOutlined } from '@ant-design/icons';
 import DownloadList from '../components/DownloadList';
 import { useDownloadStore, useTaskStats } from '../store/downloadStore';
 import { useProgressUpdater, useTaskCompletion, useTaskError } from '../hooks/useProgressUpdater';
-import type { DownloadTask } from '../types/download';
+
 
 const { Title, Text } = Typography;
 
@@ -21,7 +21,6 @@ const Download = () => {
   const pauseTask = useDownloadStore((state) => state.pauseTask);
   const resumeTask = useDownloadStore((state) => state.resumeTask);
   const cancelTask = useDownloadStore((state) => state.cancelTask);
-  const removeTask = useDownloadStore((state) => state.removeTask);
   const clearCompleted = useDownloadStore((state) => state.clearCompleted);
   
   // Stats
@@ -62,10 +61,7 @@ const Download = () => {
     message.info('下载已取消');
   }, [cancelTask]);
   
-  const handleRemove = useCallback((id: string) => {
-    removeTask(id);
-    message.success('任务已删除');
-  }, [removeTask]);
+
   
   const handleAddDownload = useCallback(async (values: { url: string; filename?: string }) => {
     try {

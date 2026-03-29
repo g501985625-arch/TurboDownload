@@ -8,7 +8,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DownloadTask, DownloadConfig, DownloadProgress } from '../types/download';
 import {
-  startDownload,
   startDownloadWithConfig,
   pauseDownload,
   resumeDownload,
