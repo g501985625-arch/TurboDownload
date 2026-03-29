@@ -86,12 +86,6 @@
     "shell": {
       "open": true
     },
-    "dialog": {
-      "all": true
-    },
-    "notification": {
-      "all": true
-    },
     "fs": {
       "all": true,
       "scope": ["$APPDATA/**", "$DOWNLOAD/**", "$HOME/**", "$TEMP/**"]
