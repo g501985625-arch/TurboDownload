@@ -1,112 +1,155 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Custom styles for TurboDownload */
-
 :root {
-  --primary-color: #3b82f6;
-  --success-color: #22c55e;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --border-color: #475569;
+  --text: #333333;
+  --text-h: #000000;
+  --bg: #ffffff;
+  --border: #f0f0f0;
+  --code-bg: #fafafa;
+  --accent: #1890ff;
+  --accent-bg: #e6f7ff;
+  --accent-border: #91d5ff;
+  --sidebar-bg: #ffffff;
+  --header-bg: #ffffff;
+  
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 14px/1.5 var(--sans);
+  color: var(--text);
+  color-scheme: light;
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 body {
-  @apply bg-slate-900 text-slate-100 antialiased;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  margin: 0;
+  background: #ffffff;
 }
 
-/* Scrollbar styles */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  text-align: left;
+  min-height: 100vh;
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-slate-800 rounded;
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+  margin: 0;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-600 rounded;
+/* Card component */
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 1.5rem;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-500;
+/* Input field styles */
+.input-field {
+  background-color: #334155;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f1f5f9;
+  padding: 0.5rem 0.75rem;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
 }
 
-/* Custom component styles */
-@layer components {
-  .btn-primary {
-    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200;
-  }
-
-  .btn-secondary {
-    @apply px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors duration-200;
-  }
-
-  .btn-success {
-    @apply px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200;
-  }
-
-  .btn-danger {
-    @apply px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200;
-  }
-
-  .input-field {
-    @apply w-full px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500;
-  }
-
-  .card {
-    @apply bg-slate-800 border border-slate-700 rounded-xl p-4;
-  }
-
-  .panel {
-    @apply bg-slate-800/50 border border-slate-700/50 rounded-lg;
-  }
+.input-field:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
-/* Animation utilities */
-@keyframes pulse-slow {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.input-field::placeholder {
+  color: #94a3b8;
 }
 
-.animate-pulse-slow {
-  animation: pulse-slow 2s ease-in-out infinite;
+/* Button styles */
+.btn-primary {
+  background-color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  color: white;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-/* Progress bar animation */
-@keyframes progress-shine {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+.btn-primary:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
 }
 
-.progress-bar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  animation: progress-shine 1.5s ease-in-out infinite;
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #475569;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #f1f5f9;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #334155;
+  border-color: #334155;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Ant Design white theme overrides */
+.ant-layout {
+  background: #ffffff !important;
+}
+
+.ant-menu {
+  background: transparent !important;
+}
+
+.ant-card {
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+}
+
+.ant-btn-primary {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+.ant-btn-primary:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
 }

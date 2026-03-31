@@ -136,6 +136,89 @@ The following Tauri commands are available:
 - `get_default_download_dir()` - Get default download directory
 - `file_exists(path)` - Check if file exists
 
+## Agent API
+
+TurboDownload provides a REST API for programmatic access to download management. This enables AI agents and external systems to interact with TurboDownload programmatically.
+
+### Base URLs
+
+- **REST API**: `http://localhost:8080/api/v1`
+- **WebSocket**: `ws://localhost:8080/ws`
+
+### Authentication
+
+All API requests (except `/health`) require a Bearer token:
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/downloads
+```
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| POST | `/api/v1/download` | Create download |
+| GET | `/api/v1/download/:id` | Get download status |
+| POST | `/api/v1/download/:id/pause` | Pause download |
+| POST | `/api/v1/download/:id/resume` | Resume download |
+| DELETE | `/api/v1/download/:id` | Cancel download |
+| GET | `/api/v1/downloads` | List all downloads |
+
+### Quick Start
+
+1. **Check health**:
+```bash
+curl http://localhost:8080/health
+```
+
+2. **Create a download**:
+```bash
+curl -X POST http://localhost:8080/api/v1/download \
+  -H "Authorization: Bearer your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/file.zip","filename":"file.zip","threads":4}'
+```
+
+3. **Get download status**:
+```bash
+curl http://localhost:8080/api/v1/download/<task_id> \
+  -H "Authorization: Bearer your_token"
+```
+
+4. **List all downloads**:
+```bash
+curl http://localhost:8080/api/v1/downloads \
+  -H "Authorization: Bearer your_token"
+```
+
+### WebSocket Events
+
+Connect to `ws://localhost:8080/ws?token=<token>` to receive real-time updates:
+
+- `Progress` - Download progress updates
+- `Completed` - Download completed
+- `Failed` - Download failed
+- `StatusChanged` - Status changed
+
+### Documentation
+
+For complete API documentation including request/response schemas, error codes, and examples in JavaScript, see [docs/API.md](docs/API.md).
+
+### Testing
+
+Run the API test script:
+
+```bash
+./scripts/test_api.sh
+```
+
+For Rust integration tests:
+
+```bash
+cargo test --package turbo-download --test api_test
+```
+
 ## License
 
 MIT License

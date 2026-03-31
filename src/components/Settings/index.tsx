@@ -14,6 +14,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { fileService } from '../../services/file';
+import UpdateSection, { UpdateSettings, UpdateFrequency } from './UpdateSection';
+import { useUpdater } from '../../hooks/useUpdater';
 
 interface AppSettings {
   defaultDownloadDir: string;
@@ -23,6 +25,7 @@ interface AppSettings {
   autoStartDownloads: boolean;
   showNotifications: boolean;
   confirmBeforeDelete: boolean;
+  updateSettings: UpdateSettings;
 }
 
 const defaultSettings: AppSettings = {
@@ -33,16 +36,28 @@ const defaultSettings: AppSettings = {
   autoStartDownloads: true,
   showNotifications: true,
   confirmBeforeDelete: true,
+  updateSettings: {
+    autoCheckEnabled: true,
+    checkFrequency: 'weekly',
+    skippedVersions: [],
+  }
 };
 
 const SettingsPanel: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<string>('0.0.0');
+  const [checkStatus, setCheckStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [checkMessage, setCheckMessage] = useState<string>('');
+  const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
+  
+  const { checkForUpdates: checkForAppUpdates, getCurrentVersion } = useUpdater();
 
   // Load settings on mount
   useEffect(() => {
     loadSettings();
+    loadCurrentVersion();
   }, []);
 
   // Load settings from localStorage
@@ -62,11 +77,88 @@ const SettingsPanel: React.FC = () => {
     }
   };
 
+  // Load current app version
+  const loadCurrentVersion = async () => {
+    try {
+      const version = await getCurrentVersion();
+      setCurrentVersion(version);
+    } catch (err) {
+      console.error('Failed to get current version:', err);
+      setCurrentVersion('unknown');
+    }
+  };
+
+  // Handle update settings change
+  const handleUpdateSettingsChange = (updateSettings: UpdateSettings) => {
+    setSettings(prev => ({
+      ...prev,
+      updateSettings: {
+        ...updateSettings,
+        lastCheckTime: prev.updateSettings.lastCheckTime // Preserve last check time unless explicitly updated
+      }
+    }));
+  };
+
+  // Handle update settings change with specific last check time
+  const handleUpdateSettingsChangeWithTime = (updateSettings: UpdateSettings, updateTime: boolean = false) => {
+    const newSettings = { ...updateSettings };
+    if (updateTime) {
+      newSettings.lastCheckTime = new Date().toISOString();
+    }
+    setSettings(prev => ({
+      ...prev,
+      updateSettings: newSettings
+    }));
+  };
+
+  // Check for updates now
+  const handleCheckForUpdates = async () => {
+    setIsCheckingForUpdates(true);
+    setCheckStatus('idle');
+    setCheckMessage('');
+    
+    try {
+      // Update last check time
+      handleUpdateSettingsChangeWithTime({
+        ...settings.updateSettings,
+        lastCheckTime: new Date().toISOString()
+      });
+      
+      const hasUpdate = await checkForAppUpdates(settings.updateSettings.skippedVersions);
+      if (hasUpdate) {
+        setCheckStatus('success');
+        setCheckMessage('发现新版本！');
+      } else {
+        setCheckStatus('success');
+        setCheckMessage('已是最新版本');
+      }
+    } catch (err) {
+      console.error('Failed to check for updates:', err);
+      setCheckStatus('error');
+      setCheckMessage('检查更新失败');
+    } finally {
+      setIsCheckingForUpdates(false);
+    }
+  };
+
   // Save settings
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      localStorage.setItem('turbodownload_settings', JSON.stringify(settings));
+      // Prepare settings object ensuring update settings are properly structured
+      const settingsToSave = {
+        ...settings,
+        updateSettings: {
+          ...settings.updateSettings,
+          // Ensure we maintain proper structure for update settings
+          autoCheckEnabled: settings.updateSettings.autoCheckEnabled ?? true,
+          checkFrequency: settings.updateSettings.checkFrequency ?? 'weekly',
+          skippedVersions: settings.updateSettings.skippedVersions ?? [],
+          lastCheckTime: settings.updateSettings.lastCheckTime
+        }
+      };
+      
+      localStorage.setItem('turbodownload_settings', JSON.stringify(settingsToSave));
       setSaveMessage('Settings saved successfully!');
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err) {
@@ -258,6 +350,17 @@ const SettingsPanel: React.FC = () => {
             </div>
           </section>
 
+          {/* Update Section */}
+          <UpdateSection
+            settings={settings.updateSettings}
+            currentVersion={currentVersion}
+            onSettingsChange={handleUpdateSettingsChange}
+            onCheckNow={handleCheckForUpdates}
+            isChecking={isCheckingForUpdates}
+            checkStatus={checkStatus}
+            checkMessage={checkMessage}
+          />
+
           {/* About Section */}
           <section className="card">
             <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
@@ -266,7 +369,7 @@ const SettingsPanel: React.FC = () => {
             </h3>
             
             <div className="space-y-2 text-sm text-slate-400">
-              <p><strong className="text-white">TurboDownload</strong> v0.1.0</p>
+              <p><strong className="text-white">TurboDownload</strong> v{currentVersion}</p>
               <p>A fast download manager with web scraping capabilities.</p>
               <p className="text-xs mt-2">
                 Built with Tauri 2.x + React + TypeScript + Rust

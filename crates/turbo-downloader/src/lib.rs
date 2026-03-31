@@ -23,6 +23,7 @@ pub mod pool;
 pub mod progress;
 pub mod resume;
 pub mod storage;
+pub mod privacy;
 
 // Re-export main types
 pub use error::{DownloadError, Result};
@@ -38,6 +39,7 @@ pub use download::{
 };
 pub use progress::{DownloadProgress, ProgressCallback, SpeedCalculator, Tracker};
 pub use resume::{Recovery, ResumeState};
+pub use privacy::{PrivacyConfig};
 
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

@@ -58,6 +58,8 @@ pub struct Task {
     pub config: DownloadConfig,
     state: parking_lot::Mutex<TaskState>,
     pub file_size: u64,
+    pub downloaded: u64,
+    speed: std::sync::atomic::AtomicU64,
 }
 
 impl Task {
@@ -67,6 +69,8 @@ impl Task {
             config,
             state: parking_lot::Mutex::new(TaskState::Pending),
             file_size,
+            downloaded: 0,
+            speed: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -76,5 +80,22 @@ impl Task {
 
     pub fn set_state(&self, state: TaskState) {
         *self.state.lock() = state;
+    }
+
+    pub fn get_downloaded(&self) -> u64 {
+        self.downloaded
+    }
+
+    pub fn set_downloaded(&mut self, downloaded: u64) {
+        self.downloaded = downloaded;
+    }
+
+    pub fn speed(&self) -> u64 {
+        self.speed.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn set_speed(&self, speed: u64) {
+        // Note: AtomicU64::store takes &self, not &mut self
+        self.speed.store(speed, std::sync::atomic::Ordering::Relaxed);
     }
 }

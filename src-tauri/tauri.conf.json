@@ -2,69 +2,55 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "TurboDownload",
   "version": "1.0.0",
-  "identifier": "com.turbodownload.app",
-
+  "identifier": "com.turbodownload.desktop",
   "build": {
-    "beforeDevCommand": "cd ../../crates/turbo-ui && npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "cd ../../crates/turbo-ui && npm run build",
-    "frontendDist": "../../crates/turbo-ui/dist"
+    "frontendDist": "./dist"
   },
-
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "TurboDownload - High Performance Download Manager",
-        "label": "main",
+        "title": "TurboDownload",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false,
+        "center": true,
         "decorations": true,
         "transparent": false,
-        "center": true,
-        "visible": true,
-        "focus": true,
-        "alwaysOnTop": false,
-        "skipTaskbar": false
+        "focus": true
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:; font-src 'self' data:"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: http:"
     }
   },
-
   "bundle": {
     "active": true,
-    "targets": "all",
     "icon": [
-      "icons/icon.png",
+      "icons/icon_32x32.png",
+      "icons/icon_128x128.png",
+      "icons/icon_256x256.png",
+      "icons/icon_512x512.png",
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [],
+    "targets": "all",
     "category": "Utility",
-    "shortDescription": "High-performance download manager",
-    "longDescription": "TurboDownload is a fast, multi-threaded download manager with resume support, web scraping capabilities, and real-time progress tracking. Built with Rust and Tauri for optimal performance.",
-    "copyright": "Copyright © 2026 TurboDownload Team",
-    "publisher": "TurboDownload Team",
+    "shortDescription": "A fast multi-threaded download manager",
+    "longDescription": "TurboDownload is a high-performance download manager with multi-threaded downloading, breakpoint continuation, and web crawler capabilities.",
+    "copyright": "Copyright © 2026 TurboDownload",
+    "publisher": "TurboDownload",
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": null,
-      "wix": null,
-      "nsis": {
-        "installerIcon": "icons/icon.ico",
-        "installMode": "currentUser",
-        "displayLanguageSelector": false
-      }
+      "timestampUrl": ""
     },
     "macOS": {
       "entitlements": null,
-      "exceptionDomain": null,
+      "exceptionDomain": "",
       "frameworks": [],
       "providerShortName": null,
       "signingIdentity": null
@@ -77,22 +63,24 @@
         "depends": []
       },
       "rpm": {
-        "release": "1"
+        "depends": []
       }
     }
   },
-
   "plugins": {
-    "shell": {
-      "open": true
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/yourusername/TurboDownload/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3OEFDMzEyM0M1MjM2N0EKUldSNk5sSThFc09LVjdKa0EySmc0bGdMdkFzcHBiSkJCcm1UbDVxNDZsNDB5OUdYSkZtZjBiUkkK"
     },
     "fs": {
-      "all": true,
-      "scope": ["$APPDATA/**", "$DOWNLOAD/**", "$HOME/**", "$TEMP/**"]
+      "requireLiteralLeadingDot": false
     },
-    "http": {
-      "all": true,
-      "scope": ["http://**", "https://**"]
+    "shell": {
+      "open": true
     }
   }
 }

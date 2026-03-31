@@ -118,8 +118,11 @@ impl DownloaderBuilder {
     }
 
     pub fn build(self) -> Result<Downloader> {
-        let client = Client::new(crate::http::ClientConfig {
-            timeout: self.timeout,
+        let client = Client::new(crate::http::PrivacyClientConfig {
+            base_config: crate::http::ClientConfig {
+                timeout: self.timeout,
+                ..Default::default()
+            },
             ..Default::default()
         })?;
 

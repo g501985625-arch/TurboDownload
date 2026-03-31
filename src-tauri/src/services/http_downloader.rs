@@ -11,6 +11,8 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 
 use crate::models::{DownloadConfig, DownloadProgress, DownloadStatus, Result, AppError};
+use crate::privacy::{random_user_agent, UserAgentPool, PrivacyConfig};
+use crate::privacy::tls::{TlsConfig, create_http_client};
 
 /// Progress callback type
 pub type ProgressCallback = Arc<dyn Fn(DownloadProgress) + Send + Sync>;
@@ -21,21 +23,49 @@ pub struct HttpDownloader {
     client: reqwest::Client,
     /// Progress callback
     progress_callback: Option<ProgressCallback>,
+    /// User-Agent pool
+    ua_pool: UserAgentPool,
+    /// Privacy config
+    privacy_config: PrivacyConfig,
 }
 
 impl HttpDownloader {
-    /// Create a new HTTP downloader
+    /// Create a new HTTP downloader with default settings
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent("TurboDownload/0.1.0")
+        Self::with_privacy_configs(PrivacyConfig::default())
+    }
+
+    /// Create a new HTTP downloader with custom privacy config
+    pub fn with_privacy_config(privacy_config: PrivacyConfig) -> Self {
+        let user_agent = if privacy_config.random_user_agent {
+            random_user_agent()
+        } else if let Some(ref custom) = privacy_config.custom_user_agent {
+            custom.clone()
+        } else {
+            "TurboDownload/1.0".to_string()
+        };
+
+        // 使用TLS配置创建HTTP客户端
+        let base_client = create_http_client(&privacy_config.tls)
+            .expect("Failed to create HTTP client");
+        
+        let client = base_client
+            .user_agent(&user_agent)
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .expect("Failed to create HTTP client");
+            .expect("Failed to build HTTP client");
 
         Self {
             client,
             progress_callback: None,
+            ua_pool: UserAgentPool::new(),
+            privacy_config,
         }
+    }
+
+    /// Create a new HTTP downloader with custom privacy config (alternative name for compatibility)
+    pub fn with_privacy_configs(privacy_config: PrivacyConfig) -> Self {
+        Self::with_privacy_config(privacy_config)
     }
 
     /// Set progress callback
@@ -44,11 +74,25 @@ impl HttpDownloader {
         self
     }
 
+    /// Refresh User-Agent (for new download session)
+    fn get_user_agent(&self) -> String {
+        if self.privacy_config.random_user_agent {
+            self.ua_pool.random()
+        } else if let Some(ref custom) = self.privacy_config.custom_user_agent {
+            custom.clone()
+        } else {
+            "TurboDownload/1.0".to_string()
+        }
+    }
+
     /// Get file info from URL (size, filename)
     pub async fn get_file_info(&self, url: &str) -> Result<(Option<u64>, Option<String>)> {
+        let user_agent = self.get_user_agent();
+        
         let response = self
             .client
             .head(url)
+            .header(reqwest::header::USER_AGENT, &user_agent)
             .send()
             .await
             .map_err(|e| AppError::NetworkError(format!("Failed to get file info: {}", e)))?;
@@ -82,8 +126,14 @@ impl HttpDownloader {
         cancel_flag: Arc<RwLock<bool>>,
         task_id: String,
     ) -> Result<()> {
+        // Get User-Agent for this download
+        let user_agent = self.get_user_agent();
+        
         // Create the request
         let mut request = self.client.get(url);
+        
+        // Set User-Agent header
+        request = request.header(reqwest::header::USER_AGENT, &user_agent);
         
         // Add custom headers
         for (key, value) in &config.headers {

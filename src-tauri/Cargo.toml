@@ -1,65 +1,55 @@
 [package]
 name = "turbo-download"
-version = "0.1.0"
-description = "A fast download manager with web scraping capabilities"
+version = "1.0.0"
+description = "A fast multi-threaded download manager"
 authors = ["TurboDownload Team"]
 edition = "2021"
 
 [lib]
 name = "turbo_download_lib"
-crate-type = ["lib", "cdylib", "staticlib"]
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-# Tauri
 tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
-tauri-plugin-dialog = "2"
+turbo-downloader = { path = "../crates/turbo-downloader" }
+turbo-crawler = { path = "../crates/turbo-crawler" }
+parking_lot = "0.12"
+
+# CLI dependencies
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["sync", "rt-multi-thread", "macros"] }
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.4"
+headers = "0.4"
+tauri-plugin-fs = "2"
 tauri-plugin-notification = "2"
-
-# Async runtime
-tokio = { version = "1", features = ["full"] }
-
-# HTTP client
-reqwest = { version = "0.12", features = ["stream", "json"] }
-
-# HTML parsing
-scraper = "0.19"
-
-# URL handling
-url = "2.5"
-
-# Regex
-regex = "1.10"
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Error handling
-anyhow = "1.0"
-thiserror = "1.0"
-
-# Logging
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# UUID for task IDs
-uuid = { version = "1.7", features = ["v4", "serde"] }
-
-# Lazy static initialization
-once_cell = "1.19"
-
-# Async utilities
-futures = "0.3"
-
-# File system
-dirs = "5.0"
-
-# Time handling
-chrono = { version = "0.4", features = ["serde"] }
-
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-http = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+env_logger = "0.11"
+uuid = { version = "1", features = ["v4"] }
+rand = "0.8"
+dirs = "5.0"
+url = "2"
+aes-gcm = "0.10"
+subtle = "2"
+base64 = "0.22"
+
+[[bin]]
+name = "turbo-download"
+path = "src/main.rs"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

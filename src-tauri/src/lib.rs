@@ -1,10 +1,10 @@
-//! TurboDownload Library
-//!
-//! Core functionality for the download manager
-
+// TurboDownload - Library crate
 pub mod commands;
-pub mod models;
-pub mod services;
+pub mod api;
+pub mod cli;  // CLI 模块
 
-// Re-export commonly used types
-pub use models::{DownloadTask, DownloadConfig, DownloadStatus, DownloadProgress, Resource, ResourceType};
+use log::info;
+
+pub fn run() {
+    info!("TurboDownload library loaded");
+}
