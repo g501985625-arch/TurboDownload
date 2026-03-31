@@ -5,6 +5,7 @@ use aes_gcm::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use rand::RngCore;
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
@@ -35,12 +36,8 @@ fn get_encryption_key() -> Result<[u8; 32], String> {
         }
         fs::write(&key_path, encoded).map_err(|e| e.to_string())?;
 
-        // 设置密钥文件权限为 600
-        let mut perms = fs::metadata(&key_path)
-            .map_err(|e| e.to_string())?
-            .permissions();
-        perms.set_mode(0o600);
-        fs::set_permissions(&key_path, perms).map_err(|e| e.to_string())?;
+        // 设置密钥文件安全权限 (仅在 Unix 系统上)
+        set_secure_permissions(&key_path).map_err(|e| format!("设置密钥文件权限失败: {}", e))?;
 
         Ok(key)
     }
@@ -96,12 +93,8 @@ pub fn save_token(token: &str) -> Result<(), String> {
     let encoded = BASE64.encode(encrypted);
     fs::write(&path, encoded).map_err(|e| e.to_string())?;
 
-    // 设置文件权限为 600
-    let mut perms = fs::metadata(&path)
-        .map_err(|e| e.to_string())?
-        .permissions();
-    perms.set_mode(0o600);
-    fs::set_permissions(&path, perms).map_err(|e| e.to_string())?;
+    // 设置文件安全权限 (仅在 Unix 系统上)
+    set_secure_permissions(&path).map_err(|e| format!("设置token文件权限失败: {}", e))?;
 
     Ok(())
 }
@@ -125,6 +118,30 @@ fn token_file_path() -> Result<PathBuf, String> {
     }
 
     Ok(path)
+}
+
+// 跨平台设置文件安全权限的辅助函数
+fn set_secure_permissions(path: &std::path::Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(path)
+            .map_err(|e| format!("获取文件元数据失败: {}", e))?
+            .permissions();
+        perms.set_mode(0o600); // 只有所有者可读写
+        fs::set_permissions(path, perms).map_err(|e| format!("设置Unix文件权限失败: {}", e))?;
+    }
+    
+    #[cfg(windows)]
+    {
+        let mut perms = fs::metadata(path)
+            .map_err(|e| format!("获取文件元数据失败: {}", e))?
+            .permissions();
+        perms.set_readonly(true); // 在 Windows 上设置为只读
+        fs::set_permissions(path, perms).map_err(|e| format!("设置Windows文件权限失败: {}", e))?;
+    }
+    
+    Ok(())
 }
 
 #[cfg(test)]
