@@ -52,11 +52,11 @@ jobs:
 
     - name: Install frontend dependencies
       run: npm install
-      working-directory: ./crates/turbo-ui
+      working-directory: ./
 
     - name: Build frontend
       run: npm run build
-      working-directory: ./crates/turbo-ui
+      working-directory: ./
 
     - name: Install cargo-tauri
       run: npm install -g @tauri-apps/cli
@@ -110,11 +110,11 @@ jobs:
 
     - name: Install frontend dependencies
       run: npm install
-      working-directory: ./crates/turbo-ui
+      working-directory: ./
 
     - name: Build frontend
       run: npm run build
-      working-directory: ./crates/turbo-ui
+      working-directory: ./
 
     - name: Install cargo-tauri
       run: npm install -g @tauri-apps/cli
@@ -160,11 +160,11 @@ jobs:
 
     - name: Install frontend dependencies
       run: npm install
-      working-directory: ./crates/turbo-ui
+      working-directory: ./
 
     - name: Build frontend
       run: npm run build
-      working-directory: ./crates/turbo-ui
+      working-directory: ./
 
     - name: Install cargo-tauri
       run: npm install -g @tauri-apps/cli

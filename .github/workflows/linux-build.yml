@@ -44,7 +44,6 @@ jobs:
         
     - name: Install frontend dependencies
       run: |
-        cd crates/turbo-ui
         npm install
         npm run build
       working-directory: .
