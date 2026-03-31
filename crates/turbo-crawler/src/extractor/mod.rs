@@ -9,6 +9,7 @@ pub enum ResourceType {
     Image,
     Video,
     Audio,
+    Streaming, // m3u8, mpd streaming manifests
     Document,
     Archive,
     Script,
@@ -23,6 +24,32 @@ impl ResourceType {
     pub fn from_url(url: &str) -> Self {
         let url_lower = url.to_lowercase();
         
+        // Streaming manifests (check before video/audio for .m3u8 extension)
+        if url_lower.contains(".m3u8") || url_lower.contains(".mpd") ||
+           url_lower.contains(".m3u") || url_lower.contains("manifest") ||
+           url_lower.contains(".ism") {
+            return ResourceType::Streaming;
+        }
+        
+        // CDN path patterns for streaming
+        let cdn_patterns = [
+            "/hls/", "/dash/", "/live/", "/video/", "/stream/",
+            "/videos/", "/media/", "/content/", "/playback/",
+        ];
+        for pattern in &cdn_patterns {
+            if url_lower.contains(pattern) {
+                // Check if it's a known video/audio extension
+                if url_lower.ends_with(".mp4") || url_lower.ends_with(".webm") ||
+                   url_lower.ends_with(".m3u8") || url_lower.ends_with(".mpd") {
+                    return ResourceType::Video;
+                }
+                if url_lower.ends_with(".mp3") || url_lower.ends_with(".m3u") ||
+                   url_lower.ends_with(".aac") {
+                    return ResourceType::Audio;
+                }
+            }
+        }
+        
         // Images
         if url_lower.ends_with(".jpg") || url_lower.ends_with(".jpeg") ||
            url_lower.ends_with(".png") || url_lower.ends_with(".gif") ||
@@ -34,47 +61,51 @@ impl ResourceType {
         // Videos
         if url_lower.ends_with(".mp4") || url_lower.ends_with(".webm") ||
            url_lower.ends_with(".avi") || url_lower.ends_with(".mov") ||
-           url_lower.ends_with(".mkv") {
+           url_lower.ends_with(".mkv") || url_lower.ends_with(".flv") ||
+           url_lower.ends_with(".wmv") {
             return ResourceType::Video;
         }
         
         // Audio
         if url_lower.ends_with(".mp3") || url_lower.ends_with(".wav") ||
            url_lower.ends_with(".ogg") || url_lower.ends_with(".flac") ||
-           url_lower.ends_with(".aac") {
+           url_lower.ends_with(".aac") || url_lower.ends_with(".m4a") {
             return ResourceType::Audio;
         }
         
         // Documents
         if url_lower.ends_with(".pdf") || url_lower.ends_with(".doc") ||
            url_lower.ends_with(".docx") || url_lower.ends_with(".txt") ||
-           url_lower.ends_with(".md") {
+           url_lower.ends_with(".md") || url_lower.ends_with(".xls") ||
+           url_lower.ends_with(".xlsx") || url_lower.ends_with(".ppt") ||
+           url_lower.ends_with(".pptx") {
             return ResourceType::Document;
         }
         
         // Archives
         if url_lower.ends_with(".zip") || url_lower.ends_with(".rar") ||
            url_lower.ends_with(".7z") || url_lower.ends_with(".tar") ||
-           url_lower.ends_with(".gz") {
+           url_lower.ends_with(".gz") || url_lower.ends_with(".bz2") {
             return ResourceType::Archive;
         }
         
         // Scripts
         if url_lower.ends_with(".js") || url_lower.ends_with(".jsx") ||
-           url_lower.ends_with(".ts") || url_lower.ends_with(".tsx") {
+           url_lower.ends_with(".ts") || url_lower.ends_with(".tsx") ||
+           url_lower.ends_with(".mjs") {
             return ResourceType::Script;
         }
         
         // Stylesheets
         if url_lower.ends_with(".css") || url_lower.ends_with(".scss") ||
-           url_lower.ends_with(".less") {
+           url_lower.ends_with(".less") || url_lower.ends_with(".sass") {
             return ResourceType::Stylesheet;
         }
         
         // Fonts
         if url_lower.ends_with(".woff") || url_lower.ends_with(".woff2") ||
            url_lower.ends_with(".ttf") || url_lower.ends_with(".otf") ||
-           url_lower.ends_with(".eot") {
+           url_lower.ends_with(".eot") || url_lower.ends_with(".svg") {
             return ResourceType::Font;
         }
         
@@ -94,6 +125,7 @@ impl ResourceType {
             ResourceType::Image | 
             ResourceType::Video | 
             ResourceType::Audio |
+            ResourceType::Streaming |
             ResourceType::Document |
             ResourceType::Archive |
             ResourceType::Script |
@@ -157,9 +189,46 @@ impl ResourceExtractor {
             resources.push(Resource::new(url, self.base_url.clone()));
         }
         
-        // Extract images
+        // Extract images (standard src)
         for src in parser.extract_images() {
             let url = self.normalize_url(&src);
+            resources.push(Resource::new(url, self.base_url.clone()));
+        }
+        
+        // Extract lazy-loaded images
+        for src in parser.extract_lazy_images() {
+            let url = self.normalize_url(&src);
+            resources.push(Resource::new(url, self.base_url.clone()));
+        }
+        
+        // Extract background images from inline styles
+        for src in parser.extract_background_images() {
+            let url = self.normalize_url(&src);
+            resources.push(Resource::new(url, self.base_url.clone()));
+        }
+        
+        // Extract videos
+        for src in parser.extract_videos() {
+            let url = self.normalize_url(&src);
+            resources.push(Resource::new(url, self.base_url.clone()));
+        }
+        
+        // Extract audios
+        for src in parser.extract_audios() {
+            let url = self.normalize_url(&src);
+            resources.push(Resource::new(url, self.base_url.clone()));
+        }
+        
+        // Extract streaming manifests
+        for src in parser.extract_streaming_manifests() {
+            let url = self.normalize_url(&src);
+            resources.push(Resource::new(url, self.base_url.clone()));
+        }
+        
+        // Extract iframes (not downloadable but may contain resources)
+        for src in parser.extract_iframes() {
+            let url = self.normalize_url(&src);
+            // Add iframe as non-downloadable resource (duplicates will be removed later)
             resources.push(Resource::new(url, self.base_url.clone()));
         }
         
@@ -174,6 +243,10 @@ impl ResourceExtractor {
             let url = self.normalize_url(&href);
             resources.push(Resource::new(url, self.base_url.clone()));
         }
+        
+        // Deduplicate resources
+        let mut seen = std::collections::HashSet::new();
+        resources.retain(|r| seen.insert(r.url.clone()));
         
         Ok(resources)
     }
