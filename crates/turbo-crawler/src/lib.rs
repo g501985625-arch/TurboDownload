@@ -14,7 +14,7 @@ pub mod crawler;
 pub use error::{CrawlerError, Result};
 pub use http::CrawlerClient;
 pub use parser::HtmlParser;
-pub use extractor::{Resource, ResourceExtractor, ResourceType};
+pub use extractor::{Resource, ResourceExtractor, ResourceType, Platform, StreamFormat};
 pub use classifier::ResourceClassifier;
 pub use scheduler::{UrlScheduler, QueuePolicy};
 pub use crawler::{Crawler, CrawlConfig, CrawlResult};

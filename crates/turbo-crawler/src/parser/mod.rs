@@ -283,6 +283,70 @@ impl HtmlParser {
             .collect()
     }
     
+    /// Extract blob URLs from inline JavaScript
+    pub fn extract_blob_urls(&self) -> Vec<String> {
+        let mut blob_urls = Vec::new();
+        
+        // Look for blob: URLs in script tags
+        if let Ok(selector) = Selector::parse("script") {
+            for el in self.document.select(&selector) {
+                let script_text: String = el.text().collect();
+                
+                // Match blob: URLs in various patterns
+                let patterns = [
+                    r#"['"](blob:[^'"]+)['"]"#,
+                    r#"["](blob:[^"]+)["]"#,
+                    r#"['](blob:[^']+)[']"#,
+                ];
+                
+                for pattern in &patterns {
+                    if let Ok(re) = regex::Regex::new(pattern) {
+                        for cap in re.captures_iter(&script_text) {
+                            if let Some(url) = cap.get(1) {
+                                let url_str = url.as_str().to_string();
+                                if !blob_urls.contains(&url_str) {
+                                    blob_urls.push(url_str);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Also look for blob URLs assigned to variables or properties
+                let var_patterns = [
+                    r#"(?:src|href|url|mediaUrl)\s*[:=]\s*['"](blob:[^'"]+)['"]"#,
+                    r#"URL\s*=\s*['"](blob:[^'"]+)['"]"#,
+                ];
+                
+                for pattern in &var_patterns {
+                    if let Ok(re) = regex::Regex::new(pattern) {
+                        for cap in re.captures_iter(&script_text) {
+                            if let Some(url) = cap.get(1) {
+                                let url_str = url.as_str().to_string();
+                                if !blob_urls.contains(&url_str) {
+                                    blob_urls.push(url_str);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Look for blob URLs in data attributes
+        if let Ok(selector) = Selector::parse("[data-src]") {
+            for el in self.document.select(&selector) {
+                if let Some(src) = el.value().attr("data-src") {
+                    if src.starts_with("blob:") && !blob_urls.contains(&src.to_string()) {
+                        blob_urls.push(src.to_string());
+                    }
+                }
+            }
+        }
+        
+        blob_urls
+    }
+    
     /// Extract streaming manifests (m3u8, mpd)
     pub fn extract_streaming_manifests(&self) -> Vec<String> {
         let mut manifests = Vec::new();
