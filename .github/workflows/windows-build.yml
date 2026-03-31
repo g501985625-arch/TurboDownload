@@ -50,7 +50,7 @@ jobs:
       uses: taiki-e/install-action@cargo-llvm-cov
 
     - name: Install cargo-tauri
-      uses: taiki-e/install-action@cargo-tauri
+      run: cargo install tauri-cli
 
     - name: Build Tauri App
       run: |
