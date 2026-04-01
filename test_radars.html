@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar功能测试页面</title>
+    <link rel="stylesheet" href="/assets/style.css">
+    <style>
+        .bg-img {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="red"/></svg>');
+        }
+        .bg-img-url {
+            background-image: url('/images/background.jpg');
+        }
+    </style>
+</head>
+<body>
+    <h1>雷达功能测试页面</h1>
+    
+    <!-- HTML5 Video -->
+    <video controls width="640" height="360" src="/videos/sample.mp4"></video>
+    
+    <!-- HTML5 Video with source tags -->
+    <video controls width="640" height="360">
+        <source src="/videos/video.webm" type="video/webm">
+        <source src="/videos/video.mp4" type="video/mp4">
+    </video>
+    
+    <!-- HTML5 Audio -->
+    <audio controls>
+        <source src="/audio/music.mp3" type="audio/mpeg">
+        <source src="/audio/music.ogg" type="audio/ogg">
+    </audio>
+    
+    <!-- Standard image -->
+    <img src="/images/standard.jpg" alt="Standard Image">
+    
+    <!-- Lazy-loaded image -->
+    <img data-src="/images/lazy-loaded.jpg" alt="Lazy-loaded Image">
+    <img data-original="/images/original.jpg" alt="Original Image">
+    <img data-lazy-src="/images/lazy-src.jpg" alt="Lazy Src Image">
+    
+    <!-- Picture element with source -->
+    <picture>
+        <source media="(min-width: 800px)" srcset="/images/desktop.jpg">
+        <source media="(min-width: 400px)" srcset="/images/tablet.jpg">
+        <img src="/images/mobile.jpg" alt="Responsive Image">
+    </picture>
+    
+    <!-- iframe embed (YouTube/Bilibili) -->
+    <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0"></iframe>
+    <iframe src="https://player.bilibili.com/player.html?bvid=BV1xx411c7XD" frameborder="0"></iframe>
+    
+    <!-- Background image in CSS -->
+    <div class="bg-img-url">Background Image Div</div>
+    
+    <!-- Streaming manifests -->
+    <video>
+        <source src="/streams/stream.m3u8" type="application/x-mpegURL">
+        <source src="/streams/manifest.mpd" type="application/dash+xml">
+    </video>
+    
+    <!-- Link to external resources -->
+    <a href="/documents/report.pdf">Download Report</a>
+    <a href="/archives/data.zip">Download Archive</a>
+    
+    <!-- Script with potential blob URLs -->
+    <script>
+        // Simulate blob URL usage
+        const blobUrl = "blob:https://example.com/1234-5678-9012";
+        const videoEl = document.createElement('video');
+        videoEl.src = blobUrl;
+        
+        // More blob patterns
+        const anotherBlob = "blob:https://example.com/different-path";
+        const urls = [blobUrl, anotherBlob];
+    </script>
+</body>
+</html>

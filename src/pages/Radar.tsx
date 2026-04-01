@@ -14,6 +14,7 @@ import {
   DownloadOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { invoke } from '@tauri-apps/api/core';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -100,12 +101,52 @@ const Radar = () => {
     setResources([]); // Clear previous results
     
     try {
-      // 调用 Mock API：扫描 URL 接口
-      const scanResults = await mockApi.scanUrl(value);
-      setResources(scanResults);
-      message.success(`扫描完成，发现 ${scanResults.length} 个资源`);
+      // 调用真实的 Tauri 命令：扫描 URL
+      const scanResults = await invoke<any[]>('scan_url', { url: value });
+      
+      // 转换后端返回的数据格式为前端 ResourceItem 格式
+      const convertedResources: ResourceItem[] = scanResults.map((item, index) => {
+        // 将后端的 resource_type 转换为前端类型
+        let resourceType: ResourceItem['type'] = 'document';
+        const rt = item.resource_type?.toLowerCase() || '';
+        if (rt.includes('image')) resourceType = 'image';
+        else if (rt.includes('video')) resourceType = 'video';
+        else if (rt.includes('audio')) resourceType = 'audio';
+        else if (rt.includes('document')) resourceType = 'document';
+        
+        // 格式化文件大小
+        let sizeStr = 'Unknown';
+        if (item.size) {
+          const bytes = item.size;
+          if (bytes < 1024) sizeStr = `${bytes} B`;
+          else if (bytes < 1024 * 1024) sizeStr = `${(bytes / 1024).toFixed(1)} KB`;
+          else if (bytes < 1024 * 1024 * 1024) sizeStr = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+          else sizeStr = `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        }
+        
+        return {
+          key: item.url || String(index),
+          name: item.filename || item.url.split('/').pop() || 'Unknown',
+          type: resourceType,
+          size: sizeStr,
+          url: item.url,
+          status: 'scanned' as const,
+        };
+      });
+      
+      // 去重：根据 URL 去重
+      const seen = new Set<string>();
+      const uniqueResources = convertedResources.filter(item => {
+        if (seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+      });
+      
+      setResources(uniqueResources);
+      message.success(`扫描完成，发现 ${uniqueResources.length} 个资源`);
     } catch (error) {
-      message.error('扫描失败，请重试');
+      console.error('Scan error:', error);
+      message.error('扫描失败: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -122,14 +163,19 @@ const Radar = () => {
     }
   };
 
-  // 处理下载
+  // 处理下载 - 使用真实的 Tauri 命令
   const handleDownload = async (record: ResourceItem) => {
     try {
-      // 调用 Mock API：下载接口
-      await mockApi.download(record);
+      // 调用 Tauri 命令进行真实下载
+      const taskInfo = await invoke('start_download', {
+        url: record.url,
+        filename: record.name,
+      });
+      console.log('Download started:', taskInfo);
       message.success(`开始下载: ${record.name}`);
     } catch (error) {
-      message.error('下载失败');
+      console.error('Download error:', error);
+      message.error('下载失败: ' + (error as Error).message);
     }
   };
 

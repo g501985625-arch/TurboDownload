@@ -1,4 +1,27 @@
+# TurboDownload v1.0.2 Release Notes
+
+**Release Date:** 2026-04-01
+
+---
+
+## 🐛 Bug Fixes
+
+### Download & Search Integration
+- **Fixed: Download function now calls real Tauri command** - Changed from mock to actual `start_download` backend command
+- **Fixed: Search function now calls real backend** - Changed to use real `scan_url` command with proper URL deduplication
+
+---
+
+## 📦 Installation
+
+### Upgrading from v1.0.1
+Simply install v1.0.2 over your existing installation.
+
+---
+
 # TurboDownload v1.0.1 Release Notes
+
+**Release Date:** 2026-04-01
 
 **Release Date:** 2026-04-01
 

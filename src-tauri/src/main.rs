@@ -76,6 +76,7 @@ fn main() {
             commands::crawler::crawl_url,
             commands::crawler::crawl_batch,
             commands::crawler::scan_site,
+            commands::crawler::scan_url,
             // Privacy commands
             commands::privacy::get_privacy_config,
             commands::privacy::set_privacy_config,

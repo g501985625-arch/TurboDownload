@@ -3,8 +3,7 @@ use crate::commands::AppState;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
-use turbo_crawler::Resource;
-use turbo_crawler::ResourceType;
+use turbo_crawler::{Resource, ResourceType, CrawlerError};
 
 /// Crawl result for a single URL
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,25 +83,22 @@ pub async fn crawl_url(
 ) -> Result<CrawlResult, String> {
     log::info!("Crawling URL: {}", url);
 
-    // Get crawler and release lock, then call async function
-    let crawler = {
-        let crawler = state.crawler.lock();
-        // Extract any needed config from crawler before releasing lock
-        // For now, just create a new crawler instance for this request
-        // This is a workaround - ideally the crawler would be Clone
-        std::mem::drop(crawler);
-        None::<()>
-    };
+    // Clone the URL for use in blocking task
+    let url_clone = url.clone();
     
     // Use tokio to run the blocking crawl operation
-    let result = tokio::task::spawn_blocking(move || {
-        // Need a fresh crawler - this is a design issue in the app state
-        // For now, return a placeholder
-        Err::<turbo_crawler::CrawlResult, _>("Crawler not available in async context".to_string())
+    let result = tokio::task::spawn_blocking(move || -> Result<turbo_crawler::CrawlResult, CrawlerError> {
+        // Create a new crawler instance for this blocking operation
+        let crawler = turbo_crawler::Crawler::new(
+            turbo_crawler::CrawlConfig::default()
+        )?;
+        
+        // Use block_on to run the async crawl method synchronously
+        tokio::runtime::Handle::current().block_on(crawler.crawl(&url_clone))
     })
     .await
     .map_err(|e| e.to_string())?
-    .map_err(|e: String| e)?;
+    .map_err(|e: CrawlerError| e.to_string())?;
 
     Ok(convert_crawl_result(url, result))
 }
@@ -138,4 +134,51 @@ pub async fn scan_site(
         pages_scanned: 0,
         duration_ms: 0,
     })
+}
+
+/// Scan URL for downloadable resources - returns resources as frontend ResourceItem format
+#[tauri::command]
+pub async fn scan_url(
+    url: String,
+) -> Result<Vec<ResourceInfo>, String> {
+    log::info!("Scanning URL for resources: {}", url);
+    
+    let url_clone = url.clone();
+    
+    // Use tokio to run the blocking crawl operation
+    let result = tokio::task::spawn_blocking(move || -> Result<turbo_crawler::CrawlResult, CrawlerError> {
+        let crawler = turbo_crawler::Crawler::new(
+            turbo_crawler::CrawlConfig::default()
+        )?;
+        
+        // Use block_on to run the async crawl method synchronously
+        tokio::runtime::Handle::current().block_on(crawler.crawl(&url_clone))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e: CrawlerError| e.to_string())?;
+
+    // Convert resources to ResourceInfo format with deduplication
+    let mut seen_urls = std::collections::HashSet::new();
+    let mut resources: Vec<ResourceInfo> = Vec::new();
+    
+    for resource in result.resources {
+        // Skip duplicates by URL
+        if seen_urls.contains(&resource.url) {
+            continue;
+        }
+        seen_urls.insert(resource.url.clone());
+        
+        // Only include downloadable resources (images, videos, audio, documents)
+        let is_downloadable = matches!(
+            resource.resource_type,
+            ResourceType::Image | ResourceType::Video | ResourceType::Audio | ResourceType::Document
+        );
+        
+        if is_downloadable {
+            resources.push(ResourceInfo::from(resource));
+        }
+    }
+
+    Ok(resources)
 }
