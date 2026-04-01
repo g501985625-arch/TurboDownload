@@ -1,6 +1,6 @@
 [package]
 name = "turbo-download"
-version = "1.0.0"
+version = "1.0.1"
 description = "A fast multi-threaded download manager"
 authors = ["TurboDownload Team"]
 edition = "2021"

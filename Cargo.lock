@@ -6401,6 +6401,7 @@ name = "turbo-crawler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "futures",
  "regex",
@@ -6419,7 +6420,7 @@ dependencies = [
 
 [[package]]
 name = "turbo-download"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "aes-gcm",
  "axum",

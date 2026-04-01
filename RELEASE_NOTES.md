@@ -1,3 +1,27 @@
+# TurboDownload v1.0.1 Release Notes
+
+**Release Date:** 2026-04-01
+
+---
+
+## 🐛 Bug Fixes
+
+### Radar Functionality (P3)
+- **Fixed: Radar scan not finding media files** - Enhanced URL pattern matching for video/audio detection
+- **Fixed: Radar stuck at scanning state** - Improved async handling and timeout management
+- **Fixed: Radar results not displaying** - Fixed UI state management for scan results
+- **Improved: Media file detection accuracy** - Added support for more streaming formats (m3u8, mp4, mkv, avi, mov, webm)
+- **Improved: Concurrent scanning performance** - Optimized parallel URL processing
+
+---
+
+## 📦 Installation
+
+### Upgrading from v1.0.0
+Simply install v1.0.1 over your existing installation.
+
+---
+
 # TurboDownload v1.0.0 Release Notes
 
 **Release Date:** 2026-03-30
