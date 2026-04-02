@@ -8,55 +8,93 @@ on:
 jobs:
   build-macos:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+          targets: ${{ matrix.target }}
+      
       - name: Install dependencies (macOS)
         run: |
           brew install create-dmg
-      - uses: tauri-apps/tauri-action@v0
+      
+      - name: Install frontend dependencies
+        run: npm install
+      
+      - name: Build frontend
+        run: npm run build
+      
+      - name: Build Tauri App
+        run: |
+          npm install -g @tauri-apps/cli
+          cargo tauri build --target ${{ matrix.target }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v__VERSION__
-          releaseName: "TurboDownload v__VERSION__"
-          releaseBody: "See CHANGELOG for details"
-          releaseDraft: true
-          prerelease: false
-          updaterJson: true
 
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: tauri-apps/tauri-action@v0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install frontend dependencies
+        run: npm install
+      
+      - name: Build frontend
+        run: npm run build
+      
+      - name: Build Tauri App
+        run: |
+          npm install -g @tauri-apps/cli
+          cargo tauri build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v__VERSION__
-          releaseName: "TurboDownload v__VERSION__"
-          releaseBody: "See CHANGELOG for details"
-          releaseDraft: true
-          prerelease: false
-          updaterJson: true
 
   build-linux:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-      - uses: tauri-apps/tauri-action@v0
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      
+      - name: Install frontend dependencies
+        run: npm install
+      
+      - name: Build frontend
+        run: npm run build
+      
+      - name: Build Tauri App
+        run: |
+          npm install -g @tauri-apps/cli
+          cargo tauri build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v__VERSION__
-          releaseName: "TurboDownload v__VERSION__"
-          releaseBody: "See CHANGELOG for details"
-          releaseDraft: true
-          prerelease: false
-          updaterJson: true
