@@ -92,7 +92,7 @@ fn main() {
             // Get main window
             if let Some(window) = app.get_webview_window("main") {
                 info!("Main window created successfully");
-                let _ = window.set_title("TurboDownload v1.0.0");
+                let _ = window.set_title(&format!("TurboDownload v{}", env!("CARGO_PKG_VERSION")));
             }
             
             Ok(())

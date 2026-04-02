@@ -3,6 +3,7 @@ import { Typography, Switch, Form, Input, Card, Button, Slider, message, Divider
 import { FolderOutlined, SaveOutlined, ReloadOutlined, SecurityScanOutlined, AuditOutlined, LinkOutlined } from '@ant-design/icons';
 import { useDownloadStore } from '../store/downloadStore';
 import { useNavigate } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/core';
 
 const { Title, Text } = Typography;
 
@@ -40,6 +41,19 @@ const Settings = () => {
   const [minimizeToTray, setMinimizeToTray] = useState(true);
   const [showNotifications, setShowNotifications] = useState(true);
   const [autoResume, setAutoResume] = useState(true);
+  
+  // App version state
+  const [appVersion, setAppVersion] = useState<string>('1.0.0');
+  
+  // Fetch app version on mount
+  useEffect(() => {
+    invoke<string>('get_current_version')
+      .then(setAppVersion)
+      .catch(() => {
+        // Fallback to environment variable or default
+        setAppVersion('1.0.2');
+      });
+  }, []);
   
   // Initialize form with store values
   useEffect(() => {
@@ -394,7 +408,7 @@ const Settings = () => {
       
       {/* 关于 */}
       <Card title="关于 TurboDownload" size="small">
-        <Text>版本: 1.0.0</Text>
+        <Text>版本: {appVersion}</Text>
         <br />
         <Text type="secondary">一个快速的多线程下载管理器</Text>
         <br />
